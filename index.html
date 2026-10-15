@@ -273,6 +273,25 @@ canvas.chart-canvas { width: 100%; height: 160px; display: block; border-radius:
 }
 .meta-chip-label { font-size: 11px; color: var(--fg-3); }
 
+/* Summary block */
+.summary-block { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 12px; }
+.summary-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 14px; background: var(--surface-2); border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--fg-2); }
+.score-badge { padding: 3px 10px; border-radius: 20px; border: 1px solid; font-size: 12px; font-weight: 600; }
+.summary-row { display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.summary-row:last-child { border-bottom: none; }
+.summary-icon { font-size: 14px; flex-shrink: 0; width: 18px; text-align: center; }
+.summary-bar { width: 3px; height: 18px; border-radius: 2px; flex-shrink: 0; }
+.summary-text { flex: 1; line-height: 1.4; }
+.summary-label { color: var(--fg-2); }
+.summary-text b { font-weight: 600; color: var(--fg); }
+.verdict-row { display: flex; align-items: center; gap: 10px; padding: 11px 14px; background: var(--surface-2); border-top: 1px solid var(--border); }
+/* Score detail */
+.score-detail-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-3); text-align: center; margin-bottom: 8px; }
+.score-detail-grid { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-bottom: 12px; }
+.score-pill { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; text-align: center; min-width: 90px; }
+.score-pill-label { font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--fg-3); margin-bottom: 3px; }
+.score-pill-val { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
 /* Extra fields */
 .extra-fields { padding: 12px 16px 4px; border-top: 1px solid var(--border); }
 .extra-fields-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px 16px; }
@@ -593,6 +612,8 @@ function showAnalyzeError(msg) {
 function parseKeepa(data) {
   const p = data.product || (Array.isArray(data.products) ? data.products[0] : null);
   if (!p) return {};
+
+  // Prix de vente
   let sellingPrice = null;
   if (p.csv) {
     if (p.csv[0]?.length >= 2) { const v = p.csv[0][p.csv[0].length-1]; if (v > 0) sellingPrice = v/100; }
@@ -602,11 +623,28 @@ function parseKeepa(data) {
     if (p.stats.current?.[0] > 0) sellingPrice = p.stats.current[0]/100;
     else if (p.stats.avg30?.[0] > 0) sellingPrice = p.stats.avg30[0]/100;
   }
+
   const title = p.title || 'Produit sans titre';
   const brand = p.brand || null;
   const category = (p.categoryTree?.length > 0 ? p.categoryTree[p.categoryTree.length-1]?.name : null) || p.rootCategory || null;
   const imageUrl = p.imagesCSV ? `https://images-na.ssl-images-amazon.com/images/I/${p.imagesCSV.split(',')[0]}` : null;
   const salesRank = p.stats?.current?.[3] || null;
+
+  // Rating & avis
+  const rating = p.stats?.current?.[16] ? p.stats.current[16] / 10 : null;
+  const reviewCount = p.stats?.current?.[17] || null;
+  const reviewCount30d = p.stats?.avg30?.[17] ? Math.max(0, (p.stats.current?.[17]||0) - (p.stats.avg30[17]||0)) : null;
+
+  // Nombre d'offres (vendeurs)
+  const offerCount = p.stats?.current?.[11] || null;
+
+  // Variantes
+  const variantCount = p.variations?.length || null;
+
+  // Dimensions & poids
+  const packageWeight = p.packageWeight ? (p.packageWeight / 1000).toFixed(0) + ' g' : null;
+  const packageDims = (p.packageLength && p.packageWidth && p.packageHeight)
+    ? `${p.packageLength}×${p.packageWidth}×${p.packageHeight} cm` : null;
 
   // Sales rank history for chart (csv[3] = Sales Rank Amazon)
   let salesHistory = [];
@@ -618,6 +656,29 @@ function parseKeepa(data) {
     }
     salesHistory = pairs;
   }
+
+  // Tendance BSR 90j : comparer dernier vs il y a 90j
+  let bsrTrend = null; // positif = amélioration (rank descend), négatif = dégradation
+  if (salesHistory.length >= 4) {
+    const recent = salesHistory.slice(-3).reduce((a,x)=>a+x.v,0)/3;
+    const old = salesHistory.slice(0,3).reduce((a,x)=>a+x.v,0)/3;
+    if (old > 0) bsrTrend = Math.round(((old - recent) / old) * 100); // % d'amélioration
+  }
+
+  // Estimation ventes mensuelles via BSR (formule empirique)
+  let estimatedMonthlySales = null;
+  if (salesRank) {
+    if (salesRank < 500) estimatedMonthlySales = 300;
+    else if (salesRank < 1000) estimatedMonthlySales = 150;
+    else if (salesRank < 3000) estimatedMonthlySales = 80;
+    else if (salesRank < 5000) estimatedMonthlySales = 50;
+    else if (salesRank < 10000) estimatedMonthlySales = 30;
+    else if (salesRank < 20000) estimatedMonthlySales = 15;
+    else if (salesRank < 50000) estimatedMonthlySales = 8;
+    else if (salesRank < 100000) estimatedMonthlySales = 4;
+    else estimatedMonthlySales = 1;
+  }
+
   // First available date (Keepa time = minutes since 2011-01-01 UTC)
   const firstAvailRaw = p.availabilityAmazon || p.csv?.[0]?.[0] || null;
   let firstAvail = null;
@@ -626,7 +687,99 @@ function parseKeepa(data) {
     firstAvail = new Date(ms).toLocaleDateString('fr-FR', { year:'numeric', month:'long' });
   }
 
-  return { sellingPrice, title, brand, category, imageUrl, salesRank, salesHistory, firstAvail };
+  return {
+    sellingPrice, title, brand, category, imageUrl, salesRank, salesHistory, firstAvail,
+    rating, reviewCount, reviewCount30d, offerCount, variantCount,
+    packageWeight, packageDims, bsrTrend, estimatedMonthlySales
+  };
+}
+
+// ---- Scoring Amazon ----
+function computeScore(parsed, netMargin, marginPct, roi, fees, sellingPrice) {
+  let score = 0;
+  const details = {};
+
+  // MARGE /30
+  let margeScore = 0;
+  if (marginPct !== null) {
+    if (marginPct >= 25) margeScore = 30;
+    else if (marginPct >= 20) margeScore = 26;
+    else if (marginPct >= 15) margeScore = 22;
+    else if (marginPct >= 10) margeScore = 15;
+    else if (marginPct >= 5) margeScore = 8;
+    else margeScore = 2;
+  }
+  details.marge = margeScore;
+  score += margeScore;
+
+  // PROFIT unitaire /20
+  let profitScore = 0;
+  if (netMargin !== null) {
+    if (netMargin >= 30) profitScore = 20;
+    else if (netMargin >= 20) profitScore = 17;
+    else if (netMargin >= 10) profitScore = 13;
+    else if (netMargin >= 5) profitScore = 8;
+    else if (netMargin >= 2) profitScore = 4;
+    else profitScore = 1;
+  }
+  details.profit = profitScore;
+  score += profitScore;
+
+  // VENTES estimées /15
+  let ventesScore = 0;
+  const ms = parsed.estimatedMonthlySales;
+  if (ms !== null) {
+    if (ms >= 100) ventesScore = 15;
+    else if (ms >= 50) ventesScore = 12;
+    else if (ms >= 20) ventesScore = 9;
+    else if (ms >= 8) ventesScore = 6;
+    else if (ms >= 3) ventesScore = 3;
+    else ventesScore = 1;
+  }
+  details.ventes = ventesScore;
+  score += ventesScore;
+
+  // BUY BOX / prix Amazon /15
+  let bbScore = 0;
+  if (sellingPrice) {
+    // Prix > 15€ = meilleur potentiel marge
+    if (sellingPrice >= 50) bbScore = 15;
+    else if (sellingPrice >= 30) bbScore = 13;
+    else if (sellingPrice >= 20) bbScore = 10;
+    else if (sellingPrice >= 15) bbScore = 7;
+    else bbScore = 4;
+  }
+  details.buybox = bbScore;
+  score += bbScore;
+
+  // CONCURRENCE /10
+  let concScore = 0;
+  const offers = parsed.offerCount;
+  if (offers !== null) {
+    if (offers <= 3) concScore = 10;
+    else if (offers <= 5) concScore = 8;
+    else if (offers <= 10) concScore = 5;
+    else if (offers <= 20) concScore = 3;
+    else concScore = 1;
+  } else { concScore = 5; } // inconnu
+  details.concurrence = concScore;
+  score += concScore;
+
+  // BSR /10
+  let bsrScore = 0;
+  const rank = parsed.salesRank;
+  if (rank !== null) {
+    if (rank < 1000) bsrScore = 10;
+    else if (rank < 5000) bsrScore = 8;
+    else if (rank < 10000) bsrScore = 6;
+    else if (rank < 30000) bsrScore = 4;
+    else if (rank < 100000) bsrScore = 2;
+    else bsrScore = 1;
+  }
+  details.bsr = bsrScore;
+  score += bsrScore;
+
+  return { score: Math.min(score, 100), details };
 }
 
 // ---- Render Analyze tab ----
@@ -642,31 +795,78 @@ function getExtraParams() {
 
 function renderAnalyzeResult(data) {
   const _p = parseKeepa(data);
-  const { sellingPrice, brand, category, imageUrl, salesRank } = _p;
+  const { sellingPrice, brand, category, imageUrl, salesRank, rating, reviewCount, reviewCount30d,
+          offerCount, variantCount, packageWeight, packageDims, bsrTrend, estimatedMonthlySales } = _p;
   const title = _p.title || 'Produit sans titre';
   const market = MARKETS[data.domain];
   const buyPrice = parseFloat(document.getElementById('buyPrice').value) || 0;
   const { extraFees, vatBuyRate, vatSellRate, saleMarket } = getExtraParams();
   const fees = sellingPrice ? estimateFees(sellingPrice) : null;
 
-  // Coût d'achat HT (enlever TVA achat si incluse)
   const buyPriceHT = vatBuyRate > 0 ? buyPrice / (1 + vatBuyRate / 100) : buyPrice;
   const totalCost = buyPriceHT + extraFees;
-
-  // Prix de vente HT (Amazon affiche TTC en général)
   const sellPriceHT = sellingPrice ? sellingPrice / (1 + vatSellRate) : null;
-
   const netMargin = (sellPriceHT && totalCost > 0 && fees) ? sellPriceHT - totalCost - fees.total : null;
   const marginPct = (netMargin !== null && sellPriceHT > 0) ? (netMargin / sellPriceHT) * 100 : null;
   const roi = (netMargin !== null && totalCost > 0) ? (netMargin / totalCost) * 100 : null;
   const breakeven = fees ? (totalCost > 0 ? totalCost + fees.total : fees.total) : null;
 
-  let marginClass = 'yellow', marginLabel = 'Marge faible', marginAdvice = '';
-  if (marginPct !== null) {
-    if (marginPct >= 15) { marginClass = 'green'; marginLabel = 'Bonne opportunité'; marginAdvice = 'La marge nette dépasse 15 %. Produit rentable selon les critères FBA standard.'; }
-    else if (marginPct >= 5) { marginClass = 'yellow'; marginLabel = 'Marge faible'; marginAdvice = 'Marge positive mais sous 15 %. Vérifiez les frais FBA réels selon le poids/dimensions.'; }
-    else { marginClass = 'red'; marginLabel = 'Non rentable'; marginAdvice = 'Marge insuffisante pour couvrir les frais et risques FBA.'; }
+  // Scoring
+  const scoring = computeScore(_p, netMargin, marginPct, roi, fees, sellingPrice);
+  const { score, details } = scoring;
+  let scoreLabel, scoreColor;
+  if (score >= 80) { scoreLabel = 'excellent'; scoreColor = 'var(--green)'; }
+  else if (score >= 65) { scoreLabel = 'bon'; scoreColor = 'var(--green)'; }
+  else if (score >= 50) { scoreLabel = 'correct'; scoreColor = 'var(--yellow)'; }
+  else if (score >= 35) { scoreLabel = 'faible'; scoreColor = 'var(--yellow)'; }
+  else { scoreLabel = 'à éviter'; scoreColor = 'var(--red)'; }
+
+  // Verdict global
+  let verdict, verdictIcon;
+  if (score >= 70 && (netMargin === null || marginPct >= 10)) { verdict = 'GO — Opportunité à saisir'; verdictIcon = '✅'; }
+  else if (score >= 50) { verdict = 'Prudence — Vérifier les frais réels'; verdictIcon = '⚠️'; }
+  else { verdict = 'À éviter — Risque trop élevé'; verdictIcon = '🚫'; }
+
+  // Lignes du résumé
+  function row(icon, ok, label, value, note) {
+    const c = ok === true ? 'var(--green)' : ok === false ? 'var(--red)' : 'var(--yellow)';
+    return `<div class="summary-row">
+      <span class="summary-icon">${icon}</span>
+      <span class="summary-bar" style="background:${c}"></span>
+      <span class="summary-text"><span class="summary-label">${label}</span>${value ? ` : <b>${value}</b>` : ''}${note ? ` — <span style="color:${c}">${note}</span>` : ''}</span>
+    </div>`;
   }
+
+  const marginRow = netMargin !== null
+    ? row('✅', marginPct>=15, 'Marge nette', `${fmtPct(marginPct)}`, marginPct>=15?'saine':marginPct>=5?'faible':'insuffisante')
+    : row('⬜', null, 'Marge nette', null, 'saisir prix d\'achat');
+  const profitRow = netMargin !== null
+    ? row('✅', netMargin>=10, 'Profit unitaire', `${fmt(netMargin)} EUR`, netMargin>=20?'bon profit':netMargin>=5?'correct':'faible')
+    : '';
+  const roiRow = roi !== null
+    ? row('⚠️', roi>=30, 'ROI', `${fmtPct(roi)}`, roi>=50?'excellent':roi>=30?'correct':'à améliorer')
+    : '';
+  const ventesRow = estimatedMonthlySales !== null
+    ? row('⚠️', estimatedMonthlySales>=20, 'Ventes estimées', `${estimatedMonthlySales}/mois`, estimatedMonthlySales>=50?'forte rotation':estimatedMonthlySales>=10?'rotation modérée':'rotation lente')
+    : '';
+  const offresRow = offerCount !== null
+    ? row('✅', offerCount<=5, 'Offres', `${offerCount} vendeur${offerCount>1?'s':''}`, offerCount<=3?'concurrence faible':offerCount<=7?'concurrence modérée':'concurrence forte')
+    : '';
+  const bsrTrendRow = bsrTrend !== null
+    ? row('📈', bsrTrend>0, 'Tendance ventes 90j', `${bsrTrend>0?'+':''}${bsrTrend}%`, bsrTrend>10?'Ventes en croissance':bsrTrend>0?'Stable':'En recul')
+    : '';
+  const ratingRow = rating !== null
+    ? row('⭐', rating>=4, 'Note produit', `${rating.toFixed(1)} ★${reviewCount ? ` · ${reviewCount.toLocaleString('fr-FR')} avis` : ''}${reviewCount30d ? ` (+${reviewCount30d}/30j)` : ''}`, null)
+    : '';
+  const dimsRow = (packageDims || packageWeight)
+    ? row('📦', null, 'Dimensions', `${packageDims||''}${packageDims&&packageWeight?' · ':''}${packageWeight||''}`, null)
+    : '';
+  const variantsRow = variantCount
+    ? row('🔀', null, 'Ce listing comporte', `${variantCount} variante${variantCount>1?'s':''}`, null)
+    : '';
+  const qtyRow = estimatedMonthlySales
+    ? row('🛒', null, 'Quantité conseillée', `${Math.max(2, Math.ceil(estimatedMonthlySales * 0.1))} unités`, `~30–45 jours de stock`)
+    : '';
 
   const marketFlags = { fr:'🇫🇷', de:'🇩🇪', it:'🇮🇹', es:'🇪🇸', uk:'🇬🇧' };
   const asinLink = `https://www.amazon.${market.tld}/dp/${data.asin}`;
@@ -681,59 +881,71 @@ function renderAnalyzeResult(data) {
           <div class="product-title">${escH(title.substring(0,110))}${title.length>110?'…':''}</div>
           <div class="product-price-row">
             ${sellingPrice ? `<span class="product-amz-price">${fmt(sellingPrice)}</span><span class="product-amz-label">prix ${market.label}</span>` : '<span style="font-size:12px;color:var(--fg-3)">Prix non disponible</span>'}
-            ${salesRank ? `<span class="chip">#${salesRank.toLocaleString('fr-FR')} ventes</span>` : ''}
+            ${salesRank ? `<span class="chip">#${salesRank.toLocaleString('fr-FR')} BSR</span>` : ''}
             <a href="${escH(asinLink)}" target="_blank" rel="noopener" style="font-size:12px;color:var(--accent);text-decoration:none">Voir sur Amazon →</a>
           </div>
         </div>
       </div>
+
       ${sellingPrice ? `
-        <div class="kpi-grid">
-          <div class="kpi-tile${netMargin !== null ? ' highlight' : ''}">
-            <div class="kpi-label">Marge nette</div>
-            <div class="kpi-val">${netMargin !== null ? fmtPct(marginPct) : '—'}</div>
-            <div class="kpi-note">${netMargin !== null ? fmt(netMargin) + ' / unité' : 'Saisir prix d\'achat'}</div>
-          </div>
-          <div class="kpi-tile">
-            <div class="kpi-label">ROI</div>
-            <div class="kpi-val">${roi !== null ? fmtPct(roi) : '—'}</div>
-            <div class="kpi-note">Retour sur invest.</div>
-          </div>
-          <div class="kpi-tile">
-            <div class="kpi-label">Seuil rentabilité</div>
-            <div class="kpi-val">${breakeven ? fmt(breakeven * (1 + vatSellRate)) : '—'}</div>
-            <div class="kpi-note">Prix vente min. TTC</div>
-          </div>
-          <div class="kpi-tile">
-            <div class="kpi-label">Coût total HT</div>
-            <div class="kpi-val">${totalCost > 0 ? fmt(totalCost) : '—'}</div>
-            <div class="kpi-note">${totalCost > 0 ? ('Achat HT' + (extraFees > 0 ? ` + ${fmt(extraFees)} frais` : '')) : 'Saisir prix d\'achat'}</div>
-          </div>
+      <div class="kpi-grid">
+        <div class="kpi-tile${netMargin !== null ? ' highlight' : ''}">
+          <div class="kpi-label">Marge nette</div>
+          <div class="kpi-val">${netMargin !== null ? fmtPct(marginPct) : '—'}</div>
+          <div class="kpi-note">${netMargin !== null ? fmt(netMargin) + ' / unité' : 'Saisir prix d\'achat'}</div>
         </div>
-        ${netMargin !== null ? `<div class="margin-result ${marginClass}">
-          <div class="margin-big">${marginLabel}</div>
-          <div class="margin-detail">
-            <div class="margin-detail-text">${marginAdvice}</div>
-          </div>
-        </div>` : ''}` : ''}
+        <div class="kpi-tile">
+          <div class="kpi-label">ROI</div>
+          <div class="kpi-val">${roi !== null ? fmtPct(roi) : '—'}</div>
+          <div class="kpi-note">Retour sur invest.</div>
+        </div>
+        <div class="kpi-tile">
+          <div class="kpi-label">Seuil rentabilité</div>
+          <div class="kpi-val">${breakeven ? fmt(breakeven * (1 + vatSellRate)) : '—'}</div>
+          <div class="kpi-note">Prix vente min. TTC</div>
+        </div>
+        <div class="kpi-tile">
+          <div class="kpi-label">Coût total HT</div>
+          <div class="kpi-val">${totalCost > 0 ? fmt(totalCost) : '—'}</div>
+          <div class="kpi-note">${totalCost > 0 ? 'Achat HT' + (extraFees > 0 ? ' + frais' : '') : 'Saisir prix d\'achat'}</div>
+        </div>
+      </div>` : ''}
+
+      ${sellingPrice ? `
+      <div class="summary-block">
+        <div class="summary-header">
+          <span>📋 RÉSUMÉ DE L'ANALYSE</span>
+          <span class="score-badge" style="background:${scoreColor}20;color:${scoreColor};border-color:${scoreColor}40">Score global : <b>${score}/100</b> — ${scoreLabel}</span>
+        </div>
+        ${marginRow}${profitRow}${roiRow}${ventesRow}${offresRow}${bsrTrendRow}${ratingRow}${dimsRow}${variantsRow}${qtyRow}
+        <div class="verdict-row">
+          <span style="font-size:16px">${verdictIcon}</span>
+          <span style="font-size:13px;font-weight:700">${verdict}</span>
+        </div>
+      </div>
+
+      <div class="score-detail-label">DÉTAIL DU SCORE</div>
+      <div class="score-detail-grid">
+        <div class="score-pill"><div class="score-pill-label">MARGE</div><div class="score-pill-val" style="color:${details.marge>=20?'var(--green)':details.marge>=10?'var(--yellow)':'var(--red)'}">${details.marge}/30</div></div>
+        <div class="score-pill"><div class="score-pill-label">PROFIT</div><div class="score-pill-val" style="color:${details.profit>=13?'var(--green)':details.profit>=8?'var(--yellow)':'var(--red)'}">${details.profit}/20</div></div>
+        <div class="score-pill"><div class="score-pill-label">VENTES</div><div class="score-pill-val" style="color:${details.ventes>=9?'var(--green)':details.ventes>=5?'var(--yellow)':'var(--red)'}">${details.ventes}/15</div></div>
+        <div class="score-pill"><div class="score-pill-label">BUY BOX</div><div class="score-pill-val" style="color:${details.buybox>=10?'var(--green)':details.buybox>=7?'var(--yellow)':'var(--red)'}">${details.buybox}/15</div></div>
+        <div class="score-pill"><div class="score-pill-label">CONCURRENCE</div><div class="score-pill-val" style="color:${details.concurrence>=8?'var(--green)':details.concurrence>=5?'var(--yellow)':'var(--red)'}">${details.concurrence}/10</div></div>
+        <div class="score-pill"><div class="score-pill-label">BSR</div><div class="score-pill-val" style="color:${details.bsr>=6?'var(--green)':details.bsr>=4?'var(--yellow)':'var(--red)'}">${details.bsr}/10</div></div>
+      </div>` : ''}
+
       ${sellingPrice && fees ? `
-        <div class="fees-grid">
-          <div class="fee-tile"><div class="fee-tile-label">PV HT</div><div class="fee-tile-val">${sellPriceHT ? fmt(sellPriceHT) : '—'}</div><div class="fee-tile-note">TVA ${(vatSellRate*100).toFixed(1)} %</div></div>
-          <div class="fee-tile"><div class="fee-tile-label">Commission</div><div class="fee-tile-val">${fmt(fees.ref)}</div><div class="fee-tile-note">~8,5 %</div></div>
-          <div class="fee-tile"><div class="fee-tile-label">Frais FBA</div><div class="fee-tile-val">${fmt(fees.fba)}</div><div class="fee-tile-note">Fulfillment</div></div>
-          <div class="fee-tile"><div class="fee-tile-label">Stockage</div><div class="fee-tile-val">${fmt(fees.storage)}</div><div class="fee-tile-note">Mensuel estimé</div></div>
-          <div class="fee-tile"><div class="fee-tile-label">Total frais</div><div class="fee-tile-val">${fmt(fees.total)}</div><div class="fee-tile-note">${((fees.total/sellingPrice)*100).toFixed(1)} % PV</div></div>
-        </div>` : ''}
-      ${netMargin !== null && totalCost > 0 ? `
-        <div class="breakdown">
-          <div class="brow"><span>Prix vente TTC ${marketFlags[saleMarket] || ''}</span><span class="bval neutral">${fmt(sellingPrice)}</span></div>
-          <div class="brow"><span>Prix vente HT</span><span class="bval neutral">${fmt(sellPriceHT)}</span></div>
-          <div class="brow"><span>Prix d'achat HT</span><span class="bval neg">−${fmt(buyPriceHT)}</span></div>
-          ${extraFees > 0 ? `<div class="brow"><span>Frais divers</span><span class="bval neg">−${fmt(extraFees)}</span></div>` : ''}
-          <div class="brow"><span>Commission Amazon</span><span class="bval neg">−${fmt(fees.ref)}</span></div>
-          <div class="brow"><span>Frais FBA</span><span class="bval neg">−${fmt(fees.fba)}</span></div>
-          <div class="brow"><span>Stockage mensuel</span><span class="bval neg">−${fmt(fees.storage)}</span></div>
-          <div class="brow total"><span>Marge nette HT</span><span class="bval ${netMargin>=0?'pos':'neg'}">${netMargin>=0?'+':''}${fmt(netMargin)}</span></div>
-        </div>` : totalCost===0 && sellingPrice ? `<div class="status-msg" style="font-size:13px;color:var(--fg-2)">↑ Saisissez votre prix d'achat pour calculer la marge</div>` : ''}
+      <div class="breakdown">
+        <div class="brow"><span>Prix vente TTC ${marketFlags[saleMarket]||''}</span><span class="bval neutral">${fmt(sellingPrice)}</span></div>
+        <div class="brow"><span>Prix vente HT</span><span class="bval neutral">${fmt(sellPriceHT)}</span></div>
+        ${totalCost > 0 ? `<div class="brow"><span>Prix d'achat HT</span><span class="bval neg">−${fmt(buyPriceHT)}</span></div>` : ''}
+        ${extraFees > 0 ? `<div class="brow"><span>Frais divers</span><span class="bval neg">−${fmt(extraFees)}</span></div>` : ''}
+        <div class="brow"><span>Commission Amazon (~8,5 %)</span><span class="bval neg">−${fmt(fees.ref)}</span></div>
+        <div class="brow"><span>Frais FBA</span><span class="bval neg">−${fmt(fees.fba)}</span></div>
+        <div class="brow"><span>Stockage mensuel</span><span class="bval neg">−${fmt(fees.storage)}</span></div>
+        ${netMargin !== null ? `<div class="brow total"><span>Marge nette HT</span><span class="bval ${netMargin>=0?'pos':'neg'}">${netMargin>=0?'+':''}${fmt(netMargin)}</span></div>` : `<div class="brow"><span style="color:var(--fg-3);font-size:12px;font-style:italic">Saisir le prix d'achat pour calculer la marge</span><span></span></div>`}
+      </div>` : ''}
+
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
         <button class="fav-btn${isSaved?' saved':''}" id="favBtn" onclick="toggleFav()">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="${isSaved?'currentColor':'none'}" stroke="currentColor" stroke-width="1.5"><path d="M8 13.4L3.2 8.8C1.8 7.4 2 5.1 3.5 3.9c1.2-1 2.9-.9 3.9.2L8 4.8l.6-.7c1-.9 2.7-1.1 3.9-.2 1.5 1.2 1.7 3.5.3 4.9L8 13.4z"/></svg>
