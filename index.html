@@ -546,7 +546,9 @@ function parseKeepa(data) {
 
 // ---- Render Analyze tab ----
 function renderAnalyzeResult(data) {
-  const { sellingPrice, title, brand, category, imageUrl, salesRank } = parseKeepa(data);
+  const _p = parseKeepa(data);
+  const { sellingPrice, brand, category, imageUrl, salesRank } = _p;
+  const title = _p.title || 'Produit sans titre';
   const market = MARKETS[data.domain];
   const buyPrice = parseFloat(document.getElementById('buyPrice').value) || 0;
   const fees = sellingPrice ? estimateFees(sellingPrice) : null;
