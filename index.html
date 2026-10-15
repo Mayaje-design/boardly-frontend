@@ -671,20 +671,6 @@ function parseKeepa(data) {
   const pH = p.packageHeight || p.itemHeight;
   const packageDims = (pL && pW && pH) ? `${pL}×${pW}×${pH} cm` : null;
 
-  // BSR drops (nombre de fois où le BSR a baissé = vente estimée) sur 30j
-  let bsrDrops = null;
-  if (salesHistory.length >= 2) {
-    let drops = 0;
-    // Filtrer les 30 derniers jours (Keepa time: minutes depuis 2011-01-01)
-    const now = Math.floor(Date.now()/60000) - 21564000;
-    const cutoff = now - 43200; // 30j en minutes
-    const recent = salesHistory.filter(x => x.t >= cutoff);
-    for (let i = 1; i < recent.length; i++) {
-      if (recent[i].v < recent[i-1].v) drops++;
-    }
-    if (recent.length >= 2) bsrDrops = drops;
-  }
-
   // Sales rank history for chart (csv[3] = Sales Rank Amazon)
   let salesHistory = [];
   if (p.csv?.[3]) {
@@ -701,7 +687,20 @@ function parseKeepa(data) {
   if (salesHistory.length >= 4) {
     const recent = salesHistory.slice(-3).reduce((a,x)=>a+x.v,0)/3;
     const old = salesHistory.slice(0,3).reduce((a,x)=>a+x.v,0)/3;
-    if (old > 0) bsrTrend = Math.round(((old - recent) / old) * 100); // % d'amélioration
+    if (old > 0) bsrTrend = Math.round(((old - recent) / old) * 100);
+
+  // BSR drops (nombre de fois où le BSR a baissé = proxy ventes) sur 30j
+  let bsrDrops = null;
+  if (salesHistory.length >= 2) {
+    let drops = 0;
+    const now = Math.floor(Date.now()/60000) - 21564000;
+    const cutoff = now - 43200; // 30j en minutes Keepa
+    const recent30 = salesHistory.filter(x => x.t >= cutoff);
+    for (let i = 1; i < recent30.length; i++) {
+      if (recent30[i].v < recent30[i-1].v) drops++;
+    }
+    if (recent30.length >= 2) bsrDrops = drops;
+  }
   }
 
   // Estimation ventes mensuelles via BSR (formule empirique)
