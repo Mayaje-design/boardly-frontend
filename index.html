@@ -147,9 +147,9 @@ header {
 }
 .price-label { font-size: 13px; font-weight: 500; color: var(--fg-2); white-space: nowrap; }
 .price-input-wrap { position: relative; display: flex; align-items: center; }
-.price-currency { position: absolute; left: 10px; font-size: 13px; font-weight: 500; color: var(--fg-3); pointer-events: none; }
+.price-currency { position: absolute; left: 10px; font-size: 13px; font-weight: 500; color: var(--fg-3); pointer-events: none; user-select: none; }
 .price-input-wrap input[type="number"] {
-  width: 100px; padding: 7px 10px 7px 22px;
+  width: 110px; padding: 7px 10px 7px 24px;
   border: 1.5px solid var(--border); border-radius: 8px;
   background: var(--bg); color: var(--fg);
   font-family: 'JetBrains Mono', monospace; font-size: 13px;
@@ -365,7 +365,7 @@ table.hist-table { width: 100%; border-collapse: collapse; min-width: 600px; }
         <span class="price-label">Prix d'achat :</span>
         <div class="price-input-wrap">
           <span class="price-currency">€</span>
-          <input type="number" id="buyPrice" min="0.01" step="0.01" placeholder="0.00">
+          <input type="number" id="buyPrice" min="0.01" step="0.01" placeholder="0.00" inputmode="decimal">
         </div>
         <span style="font-size:12px;color:var(--fg-3);font-style:italic">Modifier pour recalculer</span>
       </div>
@@ -519,7 +519,7 @@ function parseKeepa(data) {
   }
   const title = p.title || 'Produit sans titre';
   const brand = p.brand || null;
-  const category = p.categoryTree?.[p.categoryTree.length-1]?.name || p.rootCategory || null;
+  const category = (p.categoryTree?.length > 0 ? p.categoryTree[p.categoryTree.length-1]?.name : null) || p.rootCategory || null;
   const imageUrl = p.imagesCSV ? `https://images-na.ssl-images-amazon.com/images/I/${p.imagesCSV.split(',')[0]}` : null;
   const salesRank = p.stats?.current?.[3] || null;
 
