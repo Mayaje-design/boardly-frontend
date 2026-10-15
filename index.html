@@ -1,0 +1,929 @@
+<title>Boardly</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+
+<style>
+:root {
+  --bg: #f7f6f3;
+  --surface: #ffffff;
+  --surface-2: #f0ede8;
+  --border: #e0dbd4;
+  --fg: #1a1714;
+  --fg-2: #5c5550;
+  --fg-3: #9c9490;
+  --accent: #e8610a;
+  --accent-h: #d45508;
+  --accent-bg: #fff3ec;
+  --green: #1a7a4a;
+  --green-bg: #edfaf3;
+  --yellow: #a86b00;
+  --yellow-bg: #fff8e6;
+  --red: #c0230e;
+  --red-bg: #fff1ef;
+  --shadow: 0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.04);
+  --shadow-md: 0 4px 16px rgba(0,0,0,.09), 0 1px 4px rgba(0,0,0,.04);
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141210; --surface: #1e1b18; --surface-2: #272320;
+    --border: #3a3530; --fg: #f0ebe6; --fg-2: #a89f98; --fg-3: #6e6560;
+    --accent: #f07030; --accent-h: #e8610a; --accent-bg: #2a1a0e;
+    --green: #3db870; --green-bg: #0e2518; --yellow: #d4a020; --yellow-bg: #231a08;
+    --red: #f04030; --red-bg: #2a0e0a; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141210; --surface: #1e1b18; --surface-2: #272320;
+  --border: #3a3530; --fg: #f0ebe6; --fg-2: #a89f98; --fg-3: #6e6560;
+  --accent: #f07030; --accent-h: #e8610a; --accent-bg: #2a1a0e;
+  --green: #3db870; --green-bg: #0e2518; --yellow: #d4a020; --yellow-bg: #231a08;
+  --red: #f04030; --red-bg: #2a0e0a; color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--bg); color: var(--fg);
+  margin: 0; padding-inline: 16px; padding-block: 0 40px;
+  font-size: 14px; line-height: 1.5;
+}
+.wrap { max-width: 860px; margin: 0 auto; }
+
+/* Header */
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-block: 18px 14px; border-bottom: 1px solid var(--border);
+  margin-bottom: 20px; gap: 12px; flex-wrap: wrap;
+}
+.logo { display: flex; align-items: center; gap: 10px; }
+.logo-icon {
+  width: 34px; height: 34px; background: var(--accent); border-radius: 7px;
+  display: grid; place-items: center; flex-shrink: 0;
+}
+.logo-name { font-size: 19px; font-weight: 700; letter-spacing: -0.4px; }
+.logo-name span { color: var(--accent); }
+
+/* Tabs */
+.tabs {
+  display: flex; gap: 2px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 3px;
+}
+.tab-btn {
+  padding: 7px 16px; border-radius: 6px; border: none;
+  background: transparent; color: var(--fg-2);
+  font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: background 0.12s, color 0.12s; white-space: nowrap;
+}
+.tab-btn.active { background: var(--surface); color: var(--fg); box-shadow: var(--shadow); }
+.tab-btn:hover:not(.active) { color: var(--fg); }
+.tab-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 9px;
+  background: var(--accent); color: #fff; font-size: 11px; font-weight: 700;
+  margin-left: 5px; vertical-align: middle;
+}
+
+/* Panel */
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* Card */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 18px; margin-bottom: 14px;
+}
+.card-title {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--fg-3); margin-bottom: 12px;
+}
+
+/* Search */
+.search-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.asin-input {
+  flex: 1; min-width: 140px; padding: 9px 12px;
+  border: 1.5px solid var(--border); border-radius: 8px;
+  background: var(--bg); color: var(--fg);
+  font-family: 'JetBrains Mono', monospace; font-size: 13px;
+  font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase;
+  outline: none; transition: border-color 0.15s;
+}
+.asin-input:focus { border-color: var(--accent); }
+.asin-input::placeholder {
+  font-family: 'Inter', sans-serif; font-size: 13px;
+  font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--fg-3);
+}
+.market-toggle {
+  display: flex; gap: 3px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 3px;
+}
+.market-btn {
+  padding: 6px 13px; border-radius: 6px; border: none;
+  background: transparent; color: var(--fg-2);
+  font-size: 13px; font-weight: 500; cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.market-btn.active { background: var(--surface); color: var(--fg); box-shadow: var(--shadow); }
+.btn {
+  padding: 9px 18px; border: none; border-radius: 8px;
+  font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: background 0.12s, transform 0.08s;
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-h); }
+.btn-primary:active { transform: scale(0.97); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.btn-secondary {
+  background: var(--surface-2); color: var(--fg-2); border: 1px solid var(--border);
+}
+.btn-secondary:hover { background: var(--border); color: var(--fg); }
+
+.price-row {
+  display: flex; align-items: center; gap: 12px;
+  margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); flex-wrap: wrap;
+}
+.price-label { font-size: 13px; font-weight: 500; color: var(--fg-2); white-space: nowrap; }
+.price-input-wrap { position: relative; display: flex; align-items: center; }
+.price-currency { position: absolute; left: 10px; font-size: 13px; font-weight: 500; color: var(--fg-3); pointer-events: none; }
+.price-input-wrap input[type="number"] {
+  width: 100px; padding: 7px 10px 7px 22px;
+  border: 1.5px solid var(--border); border-radius: 8px;
+  background: var(--bg); color: var(--fg);
+  font-family: 'JetBrains Mono', monospace; font-size: 13px;
+  font-variant-numeric: tabular-nums; outline: none; transition: border-color 0.15s;
+}
+.price-input-wrap input[type="number"]:focus { border-color: var(--accent); }
+.price-input-wrap input[type="number"]::-webkit-inner-spin-button { opacity: 0; }
+
+/* Status */
+.status-msg { text-align: center; padding: 24px; color: var(--fg-3); font-size: 13px; }
+.spinner {
+  display: inline-block; width: 16px; height: 16px;
+  border: 2px solid var(--border); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 8px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Product result */
+.product-header { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 16px; }
+.product-img {
+  width: 68px; height: 68px; object-fit: contain; border-radius: 6px;
+  background: var(--surface-2); border: 1px solid var(--border); flex-shrink: 0;
+}
+.product-img-ph {
+  width: 68px; height: 68px; border-radius: 6px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  display: grid; place-items: center; flex-shrink: 0; color: var(--fg-3);
+}
+.product-meta { min-width: 0; flex: 1; }
+.asin-chip {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500;
+  letter-spacing: 0.06em; color: var(--fg-3);
+  background: var(--surface-2); border: 1px solid var(--border);
+  padding: 2px 7px; border-radius: 4px; display: inline-block; margin-bottom: 4px;
+}
+.product-title { font-size: 14px; font-weight: 600; line-height: 1.4; margin-bottom: 6px; }
+.product-price-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.product-amz-price { font-size: 17px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+.product-amz-label { font-size: 12px; color: var(--fg-3); }
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 500;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--fg-2);
+}
+
+/* Fees grid */
+.fees-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.fee-tile { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+.fee-tile-label { font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--fg-3); margin-bottom: 4px; }
+.fee-tile-val { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.fee-tile-note { font-size: 11px; color: var(--fg-3); margin-top: 2px; }
+
+/* Margin */
+.margin-result {
+  display: flex; align-items: center; gap: 14px; padding: 14px 16px;
+  border-radius: var(--radius); border: 1.5px solid; flex-wrap: wrap; margin-bottom: 12px;
+}
+.margin-result.green { background: var(--green-bg); border-color: var(--green); }
+.margin-result.yellow { background: var(--yellow-bg); border-color: var(--yellow); }
+.margin-result.red { background: var(--red-bg); border-color: var(--red); }
+.margin-big { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.margin-result.green .margin-big { color: var(--green); }
+.margin-result.yellow .margin-big { color: var(--yellow); }
+.margin-result.red .margin-big { color: var(--red); }
+.margin-detail { flex: 1; min-width: 140px; }
+.margin-detail-title { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+.margin-detail-text { font-size: 12px; color: var(--fg-2); line-height: 1.5; }
+.margin-detail-text b { font-weight: 600; color: var(--fg); }
+
+/* Breakdown */
+.breakdown { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
+.brow { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; font-size: 13px; border-bottom: 1px solid var(--border); }
+.brow:last-child { border-bottom: none; }
+.brow.total { background: var(--surface-2); font-weight: 600; }
+.bval { font-variant-numeric: tabular-nums; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500; }
+.bval.neg { color: var(--red); }
+.bval.pos { color: var(--green); }
+.bval.neutral { color: var(--fg-2); }
+
+/* Chart */
+.chart-wrap { margin-bottom: 12px; }
+.chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px; }
+.chart-title { font-size: 13px; font-weight: 600; }
+.chart-period-toggle { display: flex; gap: 3px; }
+.cperiod-btn {
+  padding: 4px 10px; border-radius: 5px; border: 1px solid var(--border);
+  background: transparent; color: var(--fg-3); font-size: 12px; font-weight: 500; cursor: pointer;
+  transition: all 0.1s;
+}
+.cperiod-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+canvas.chart-canvas { width: 100%; height: 160px; display: block; border-radius: 8px; }
+
+/* Supplier search buttons */
+.supplier-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.supplier-row a {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: 7px; text-decoration: none;
+  font-size: 12px; font-weight: 600; border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--fg-2); transition: all 0.12s;
+}
+.supplier-row a:hover { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); }
+.supplier-label { font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--fg-3); margin-bottom: 7px; }
+
+/* Fav button */
+.fav-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: 8px; border: 1.5px solid var(--border);
+  background: transparent; color: var(--fg-2);
+  font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.12s;
+}
+.fav-btn:hover { border-color: var(--accent); color: var(--accent); }
+.fav-btn.saved { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
+
+/* Product details chips row */
+.meta-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.meta-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500;
+  background: var(--surface-2); border: 1px solid var(--border); color: var(--fg-2);
+}
+.meta-chip-label { font-size: 11px; color: var(--fg-3); }
+
+/* Error */
+.error-card {
+  background: var(--red-bg); border: 1px solid var(--red); border-radius: var(--radius);
+  padding: 12px 16px; font-size: 13px; color: var(--red);
+  display: flex; align-items: flex-start; gap: 10px;
+}
+
+/* ===== HISTORY TAB ===== */
+.filters-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.filter-select {
+  padding: 7px 10px; border: 1.5px solid var(--border); border-radius: 8px;
+  background: var(--bg); color: var(--fg); font-size: 13px; outline: none;
+  cursor: pointer; transition: border-color 0.15s;
+}
+.filter-select:focus { border-color: var(--accent); }
+.search-filter {
+  flex: 1; min-width: 140px; padding: 7px 12px;
+  border: 1.5px solid var(--border); border-radius: 8px;
+  background: var(--bg); color: var(--fg); font-size: 13px; outline: none;
+  transition: border-color 0.15s;
+}
+.search-filter:focus { border-color: var(--accent); }
+.hist-empty { text-align: center; padding: 40px 20px; color: var(--fg-3); font-size: 13px; }
+.hist-table-wrap { overflow-x: auto; }
+table.hist-table { width: 100%; border-collapse: collapse; min-width: 600px; }
+.hist-table th {
+  text-align: left; padding: 8px 12px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--fg-3); border-bottom: 1px solid var(--border); background: var(--surface-2);
+  white-space: nowrap;
+}
+.hist-table td { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.hist-table tr:last-child td { border-bottom: none; }
+.hist-table tr:hover td { background: var(--surface-2); }
+.hist-asin { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--fg-3); }
+.hist-name { font-weight: 500; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.margin-pill {
+  display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px;
+  font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.margin-pill.green { background: var(--green-bg); color: var(--green); }
+.margin-pill.yellow { background: var(--yellow-bg); color: var(--yellow); }
+.margin-pill.red { background: var(--red-bg); color: var(--red); }
+.hist-action-btn {
+  background: none; border: none; cursor: pointer; padding: 4px;
+  color: var(--fg-3); border-radius: 4px; transition: color 0.12s, background 0.12s;
+}
+.hist-action-btn:hover { color: var(--accent); background: var(--accent-bg); }
+.del-btn:hover { color: var(--red); background: var(--red-bg); }
+
+.note-small { font-size: 11px; color: var(--fg-3); margin-top: 10px; text-align: right; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="logo">
+      <div class="logo-icon">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+          <rect x="3" y="9" width="3" height="8" rx="1" fill="white" opacity="0.9"/>
+          <rect x="8.5" y="5" width="3" height="12" rx="1" fill="white"/>
+          <rect x="14" y="2" width="3" height="15" rx="1" fill="white" opacity="0.7"/>
+        </svg>
+      </div>
+      <span class="logo-name">Board<span>ly</span></span>
+    </div>
+    <div class="tabs" id="mainTabs">
+      <button class="tab-btn active" data-tab="analyze">Analyser</button>
+      <button class="tab-btn" data-tab="detail">Détail produit</button>
+      <button class="tab-btn" data-tab="history">
+        Historique <span class="tab-badge" id="histBadge" hidden>0</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ===== TAB: ANALYSER ===== -->
+  <div class="panel active" id="tab-analyze">
+    <div class="card">
+      <div class="card-title">Rechercher un produit</div>
+      <div class="search-row">
+        <input type="text" class="asin-input" id="asinInput" placeholder="ASIN (ex: B09XYZ1234)" maxlength="10" autocomplete="off" spellcheck="false">
+        <div class="market-toggle">
+          <button class="market-btn active" data-domain="4">Amazon.fr</button>
+          <button class="market-btn" data-domain="3">Amazon.de</button>
+        </div>
+        <button class="btn btn-primary" id="searchBtn">
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.5"/><line x1="9.5" y1="9.5" x2="13" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          Analyser
+        </button>
+      </div>
+      <div class="price-row" id="priceRow" hidden>
+        <span class="price-label">Prix d'achat :</span>
+        <div class="price-input-wrap">
+          <span class="price-currency">€</span>
+          <input type="number" id="buyPrice" min="0.01" step="0.01" placeholder="0.00">
+        </div>
+        <span style="font-size:12px;color:var(--fg-3);font-style:italic">Modifier pour recalculer</span>
+      </div>
+    </div>
+    <div id="analyzeResults"></div>
+  </div>
+
+  <!-- ===== TAB: DÉTAIL ===== -->
+  <div class="panel" id="tab-detail">
+    <div id="detailContent">
+      <div class="status-msg">Lance une analyse depuis l'onglet Analyser pour voir les détails.</div>
+    </div>
+  </div>
+
+  <!-- ===== TAB: HISTORIQUE ===== -->
+  <div class="panel" id="tab-history">
+    <div class="card">
+      <div class="filters-row">
+        <input type="text" class="search-filter" id="histSearch" placeholder="Rechercher par nom, ASIN…">
+        <select class="filter-select" id="filterBrand"><option value="">Toutes les marques</option></select>
+        <select class="filter-select" id="filterCat"><option value="">Toutes les catégories</option></select>
+        <select class="filter-select" id="filterMarket">
+          <option value="">Tous les marchés</option>
+          <option value="4">Amazon.fr</option>
+          <option value="3">Amazon.de</option>
+        </select>
+        <button class="btn btn-secondary" id="clearHistBtn" style="margin-left:auto">Tout effacer</button>
+      </div>
+      <div id="histTableWrap"></div>
+      <p class="note-small">Les favoris sont sauvegardés dans votre navigateur.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_BASE = 'https://api.mayaje.com';
+const MARKETS = { 4: { label: 'Amazon.fr', tld: 'fr' }, 3: { label: 'Amazon.de', tld: 'de' } };
+
+let currentData = null;
+let selectedDomain = 4;
+let chartData30 = [], chartData90 = [];
+let activePeriod = 30;
+
+// ---- Storage ----
+function loadHistory() {
+  try { return JSON.parse(localStorage.getItem('boardly_history') || '[]'); } catch { return []; }
+}
+function saveHistory(h) {
+  try { localStorage.setItem('boardly_history', JSON.stringify(h)); } catch {}
+}
+
+// ---- Tabs ----
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    if (btn.dataset.tab === 'history') renderHistoryTable();
+  });
+});
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'history') renderHistoryTable();
+}
+
+// ---- Market toggle ----
+document.querySelectorAll('.market-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.market-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedDomain = parseInt(btn.dataset.domain);
+  });
+});
+
+// ---- ASIN input ----
+const asinInput = document.getElementById('asinInput');
+asinInput.addEventListener('input', () => { asinInput.value = asinInput.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); });
+asinInput.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('searchBtn').click(); });
+
+document.getElementById('searchBtn').addEventListener('click', () => {
+  const asin = asinInput.value.trim().toUpperCase();
+  if (!asin || asin.length < 10) { showAnalyzeError('Veuillez saisir un ASIN valide (10 caractères).'); return; }
+  fetchProduct(asin, selectedDomain);
+});
+
+document.getElementById('buyPrice').addEventListener('input', () => {
+  if (currentData) renderAnalyzeResult(currentData);
+});
+
+// ---- Fees calc ----
+function estimateFees(price) {
+  const ref = Math.max(price * 0.085, 0.30);
+  let fba;
+  if (price < 10) fba = 2.70;
+  else if (price < 20) fba = 3.10;
+  else if (price < 40) fba = 3.60;
+  else if (price < 60) fba = 4.20;
+  else fba = 5.00;
+  const storage = 0.20;
+  return { ref, fba, storage, total: ref + fba + storage };
+}
+
+function fmt(n, d = 2) { return n.toFixed(d).replace('.', ',') + ' €'; }
+function fmtPct(n) { return (n >= 0 ? '+' : '') + n.toFixed(1) + ' %'; }
+function escH(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ---- Fetch ----
+async function fetchProduct(asin, domain) {
+  document.getElementById('searchBtn').disabled = true;
+  document.getElementById('analyzeResults').innerHTML = '<div class="status-msg"><span class="spinner"></span>Analyse en cours…</div>';
+  try {
+    const r = await fetch(`${API_BASE}/api/product?asin=${asin}&domain=${domain}`);
+    if (!r.ok) { const e = await r.json().catch(()=>({})); throw new Error(e.error || `Erreur ${r.status}`); }
+    const data = await r.json();
+    currentData = { ...data, domain, asin };
+    document.getElementById('priceRow').hidden = false;
+    renderAnalyzeResult(currentData);
+    renderDetailTab(currentData);
+    updateHistBadge();
+  } catch (err) {
+    showAnalyzeError(err.message || 'Impossible de contacter l\'API. Vérifiez que api.mayaje.com est accessible.');
+  } finally {
+    document.getElementById('searchBtn').disabled = false;
+  }
+}
+
+function showAnalyzeError(msg) {
+  document.getElementById('analyzeResults').innerHTML = `
+    <div class="error-card">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;margin-top:1px"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/><line x1="8" y1="5" x2="8" y2="9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="11.5" r="0.75" fill="currentColor"/></svg>
+      <span>${escH(msg)}</span>
+    </div>`;
+}
+
+// ---- Parse Keepa ----
+function parseKeepa(data) {
+  const p = data.product;
+  if (!p) return {};
+  let sellingPrice = null;
+  if (p.csv) {
+    if (p.csv[0]?.length >= 2) { const v = p.csv[0][p.csv[0].length-1]; if (v > 0) sellingPrice = v/100; }
+    if (!sellingPrice && p.csv[18]?.length >= 2) { const v = p.csv[18][p.csv[18].length-1]; if (v > 0) sellingPrice = v/100; }
+  }
+  if (!sellingPrice && p.stats) {
+    if (p.stats.current?.[0] > 0) sellingPrice = p.stats.current[0]/100;
+    else if (p.stats.avg30?.[0] > 0) sellingPrice = p.stats.avg30[0]/100;
+  }
+  const title = p.title || 'Produit sans titre';
+  const brand = p.brand || null;
+  const category = p.categoryTree?.[p.categoryTree.length-1]?.name || p.rootCategory || null;
+  const imageUrl = p.imagesCSV ? `https://images-na.ssl-images-amazon.com/images/I/${p.imagesCSV.split(',')[0]}` : null;
+  const salesRank = p.stats?.current?.[3] || null;
+
+  // Sales rank history for chart (csv[3] = Sales Rank Amazon)
+  let salesHistory = [];
+  if (p.csv?.[3]) {
+    const raw = p.csv[3];
+    const pairs = [];
+    for (let i = 0; i < raw.length - 1; i += 2) {
+      if (raw[i] > 0 && raw[i+1] > 0) pairs.push({ t: raw[i], v: raw[i+1] });
+    }
+    salesHistory = pairs;
+  }
+  // First available date (Keepa time = minutes since 2011-01-01 UTC)
+  const firstAvailRaw = p.availabilityAmazon || p.csv?.[0]?.[0] || null;
+  let firstAvail = null;
+  if (firstAvailRaw && firstAvailRaw > 0) {
+    const ms = (firstAvailRaw + 21564000) * 60000;
+    firstAvail = new Date(ms).toLocaleDateString('fr-FR', { year:'numeric', month:'long' });
+  }
+
+  return { sellingPrice, title, brand, category, imageUrl, salesRank, salesHistory, firstAvail };
+}
+
+// ---- Render Analyze tab ----
+function renderAnalyzeResult(data) {
+  const { sellingPrice, title, brand, category, imageUrl, salesRank } = parseKeepa(data);
+  const market = MARKETS[data.domain];
+  const buyPrice = parseFloat(document.getElementById('buyPrice').value) || 0;
+  const fees = sellingPrice ? estimateFees(sellingPrice) : null;
+  const netMargin = (sellingPrice && buyPrice > 0 && fees) ? sellingPrice - buyPrice - fees.total : null;
+  const marginPct = (netMargin !== null && sellingPrice > 0) ? (netMargin / sellingPrice) * 100 : null;
+
+  let marginClass = 'yellow', marginLabel = 'Marge faible', marginAdvice = '';
+  if (marginPct !== null) {
+    if (marginPct >= 15) { marginClass = 'green'; marginLabel = 'Bonne opportunité'; marginAdvice = 'La marge nette dépasse 15 %. Produit rentable selon les critères FBA standard.'; }
+    else if (marginPct >= 5) { marginClass = 'yellow'; marginLabel = 'Marge faible'; marginAdvice = 'Marge positive mais sous 15 %. Vérifiez les frais FBA réels selon le poids/dimensions.'; }
+    else { marginClass = 'red'; marginLabel = 'Non rentable'; marginAdvice = 'Marge insuffisante pour couvrir les frais et risques FBA.'; }
+  }
+
+  const asinLink = `https://www.amazon.${market.tld}/dp/${data.asin}`;
+  const isSaved = loadHistory().some(h => h.asin === data.asin && h.domain === data.domain);
+
+  document.getElementById('analyzeResults').innerHTML = `
+    <div class="card">
+      <div class="product-header">
+        ${imageUrl ? `<img class="product-img" src="${escH(imageUrl)}" alt="" loading="lazy" onerror="this.hidden=true">` : ''}
+        <div class="product-meta">
+          <div class="asin-chip">${escH(data.asin)}</div>
+          <div class="product-title">${escH(title.substring(0,110))}${title.length>110?'…':''}</div>
+          <div class="product-price-row">
+            ${sellingPrice ? `<span class="product-amz-price">${fmt(sellingPrice)}</span><span class="product-amz-label">prix ${market.label}</span>` : '<span style="font-size:12px;color:var(--fg-3)">Prix non disponible</span>'}
+            ${salesRank ? `<span class="chip">#${salesRank.toLocaleString('fr-FR')} ventes</span>` : ''}
+            <a href="${escH(asinLink)}" target="_blank" rel="noopener" style="font-size:12px;color:var(--accent);text-decoration:none">Voir sur Amazon →</a>
+          </div>
+        </div>
+      </div>
+      ${sellingPrice && fees ? `
+        <div class="fees-grid">
+          <div class="fee-tile"><div class="fee-tile-label">Commission</div><div class="fee-tile-val">${fmt(fees.ref)}</div><div class="fee-tile-note">~8,5 %</div></div>
+          <div class="fee-tile"><div class="fee-tile-label">Frais FBA</div><div class="fee-tile-val">${fmt(fees.fba)}</div><div class="fee-tile-note">Fulfillment</div></div>
+          <div class="fee-tile"><div class="fee-tile-label">Stockage</div><div class="fee-tile-val">${fmt(fees.storage)}</div><div class="fee-tile-note">Mensuel estimé</div></div>
+          <div class="fee-tile"><div class="fee-tile-label">Total frais</div><div class="fee-tile-val">${fmt(fees.total)}</div><div class="fee-tile-note">${((fees.total/sellingPrice)*100).toFixed(1)} % PV</div></div>
+        </div>` : ''}
+      ${netMargin !== null && buyPrice > 0 ? `
+        <div class="margin-result ${marginClass}">
+          <div class="margin-big">${fmtPct(marginPct)}</div>
+          <div class="margin-detail">
+            <div class="margin-detail-title">${marginLabel}</div>
+            <div class="margin-detail-text">Marge nette : <b>${fmt(netMargin)}</b> · ${marginAdvice}</div>
+          </div>
+        </div>
+        <div class="breakdown">
+          <div class="brow"><span>Prix de vente</span><span class="bval neutral">${fmt(sellingPrice)}</span></div>
+          <div class="brow"><span>Prix d'achat</span><span class="bval neg">−${fmt(buyPrice)}</span></div>
+          <div class="brow"><span>Commission Amazon</span><span class="bval neg">−${fmt(fees.ref)}</span></div>
+          <div class="brow"><span>Frais FBA</span><span class="bval neg">−${fmt(fees.fba)}</span></div>
+          <div class="brow"><span>Stockage mensuel</span><span class="bval neg">−${fmt(fees.storage)}</span></div>
+          <div class="brow total"><span>Marge nette</span><span class="bval ${netMargin>=0?'pos':'neg'}">${netMargin>=0?'+':''}${fmt(netMargin)}</span></div>
+        </div>` : buyPrice===0 && sellingPrice ? `<div class="status-msg" style="font-size:13px;color:var(--fg-2)">↑ Saisissez votre prix d'achat pour calculer la marge</div>` : ''}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+        <button class="fav-btn${isSaved?' saved':''}" id="favBtn" onclick="toggleFav()">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="${isSaved?'currentColor':'none'}" stroke="currentColor" stroke-width="1.5"><path d="M8 13.4L3.2 8.8C1.8 7.4 2 5.1 3.5 3.9c1.2-1 2.9-.9 3.9.2L8 4.8l.6-.7c1-.9 2.7-1.1 3.9-.2 1.5 1.2 1.7 3.5.3 4.9L8 13.4z"/></svg>
+          ${isSaved ? 'Sauvegardé' : 'Sauvegarder'}
+        </button>
+        <button class="btn btn-secondary" onclick="switchTab('detail')">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><line x1="5" y1="6" x2="11" y2="6"/><line x1="5" y1="9" x2="9" y2="9"/></svg>
+          Voir détails complets
+        </button>
+      </div>
+    </div>`;
+}
+
+function toggleFav() {
+  if (!currentData) return;
+  const { sellingPrice, title, brand, category } = parseKeepa(currentData);
+  const buyPrice = parseFloat(document.getElementById('buyPrice').value) || 0;
+  const fees = sellingPrice ? estimateFees(sellingPrice) : null;
+  const net = (sellingPrice && buyPrice > 0 && fees) ? sellingPrice - buyPrice - fees.total : null;
+  const pct = (net !== null && sellingPrice > 0) ? (net / sellingPrice) * 100 : null;
+
+  let h = loadHistory();
+  const idx = h.findIndex(x => x.asin === currentData.asin && x.domain === currentData.domain);
+  if (idx >= 0) {
+    h.splice(idx, 1);
+  } else {
+    h.unshift({
+      asin: currentData.asin, domain: currentData.domain, title,
+      brand: brand || '—', category: category || '—',
+      sellingPrice, buyPrice, marginPct: pct,
+      savedAt: new Date().toISOString()
+    });
+  }
+  saveHistory(h);
+  renderAnalyzeResult(currentData);
+  updateHistBadge();
+}
+
+function updateHistBadge() {
+  const h = loadHistory();
+  const badge = document.getElementById('histBadge');
+  badge.hidden = h.length === 0;
+  badge.textContent = h.length;
+}
+
+// ---- Render Detail tab ----
+function renderDetailTab(data) {
+  const parsed = parseKeepa(data);
+  const { sellingPrice, brand, category, imageUrl, salesRank, salesHistory, firstAvail } = parsed;
+  const title = parsed.title || 'Produit sans titre';
+  const market = MARKETS[data.domain];
+
+  // Build chart data by period
+  const now = Date.now();
+  function buildChartData(days) {
+    if (!salesHistory.length) return [];
+    const cutoff = (now / 60000) - 21564000 - (days * 24 * 60);
+    return salesHistory.filter(p => p.t >= cutoff).map(p => ({
+      t: new Date((p.t + 21564000) * 60000),
+      v: p.v
+    }));
+  }
+  chartData30 = buildChartData(30);
+  chartData90 = buildChartData(90);
+
+  const searchQuery = encodeURIComponent(title.substring(0, 80));
+  const alibabaUrl = `https://www.alibaba.com/trade/search?SearchText=${searchQuery}`;
+  const googleUrl = `https://www.google.com/search?q=${searchQuery}+prix+fournisseur+grossiste`;
+  const googleShoppingUrl = `https://www.google.com/search?q=${searchQuery}&tbm=shop`;
+  const asinLink = `https://www.amazon.${market.tld}/dp/${data.asin}`;
+
+  document.getElementById('detailContent').innerHTML = `
+    <div class="card">
+      <div class="product-header">
+        ${imageUrl ? `<img class="product-img" src="${escH(imageUrl)}" alt="" loading="lazy" onerror="this.hidden=true">` : '<div class="product-img-ph"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div>'}
+        <div class="product-meta">
+          <div class="asin-chip">${escH(data.asin)}</div>
+          <div class="product-title">${escH(title)}</div>
+          <div class="product-price-row">
+            ${sellingPrice ? `<span class="product-amz-price">${fmt(sellingPrice)}</span><span class="product-amz-label">${market.label}</span>` : ''}
+            <a href="${escH(asinLink)}" target="_blank" rel="noopener" style="font-size:12px;color:var(--accent);text-decoration:none">Voir sur Amazon →</a>
+          </div>
+        </div>
+      </div>
+      <div class="meta-chips">
+        ${brand ? `<span class="meta-chip"><span class="meta-chip-label">Marque</span> ${escH(brand)}</span>` : ''}
+        ${category ? `<span class="meta-chip"><span class="meta-chip-label">Catégorie</span> ${escH(category)}</span>` : ''}
+        ${firstAvail ? `<span class="meta-chip"><span class="meta-chip-label">Mis en vente</span> ${escH(firstAvail)}</span>` : ''}
+        ${salesRank ? `<span class="meta-chip"><span class="meta-chip-label">Classement</span> #${salesRank.toLocaleString('fr-FR')}</span>` : ''}
+        <span class="meta-chip"><span class="meta-chip-label">Marché</span> ${market.label}</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="chart-wrap">
+        <div class="chart-header">
+          <span class="chart-title">Classement ventes (rang BSR)</span>
+          <div class="chart-period-toggle">
+            <button class="cperiod-btn active" data-days="30" onclick="switchChartPeriod(30, this)">30 jours</button>
+            <button class="cperiod-btn" data-days="90" onclick="switchChartPeriod(90, this)">90 jours</button>
+          </div>
+        </div>
+        <canvas class="chart-canvas" id="salesChart" width="800" height="160"></canvas>
+        <div id="chartNoData" style="display:none;text-align:center;padding:20px;color:var(--fg-3);font-size:12px">Données de classement insuffisantes pour cette période.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="supplier-label">Rechercher des fournisseurs</div>
+      <div class="supplier-row">
+        <a href="${alibabaUrl}" target="_blank" rel="noopener">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><line x1="8" y1="4" x2="8" y2="12"/><line x1="4" y1="8" x2="12" y2="8"/></svg>
+          Alibaba
+        </a>
+        <a href="${googleUrl}" target="_blank" rel="noopener">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6.5" cy="6.5" r="4.5"/><line x1="9.5" y1="9.5" x2="14" y2="14" stroke-linecap="round"/></svg>
+          Google Fournisseur
+        </a>
+        <a href="${googleShoppingUrl}" target="_blank" rel="noopener">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2h1.5l2 8h7l1.5-5.5H5"/><circle cx="7" cy="13" r="1"/><circle cx="12" cy="13" r="1"/></svg>
+          Google Shopping
+        </a>
+      </div>
+    </div>`;
+
+  setTimeout(() => drawChart(activePeriod === 30 ? chartData30 : chartData90), 50);
+}
+
+function switchChartPeriod(days, btn) {
+  activePeriod = days;
+  document.querySelectorAll('.cperiod-btn').forEach(b => b.classList.toggle('active', b.dataset.days == days));
+  drawChart(days === 30 ? chartData30 : chartData90);
+}
+
+function drawChart(points) {
+  const canvas = document.getElementById('salesChart');
+  const noData = document.getElementById('chartNoData');
+  if (!canvas) return;
+  if (!points || points.length < 2) {
+    canvas.hidden = true; noData.style.display = 'block'; return;
+  }
+  canvas.hidden = false; noData.style.display = 'none';
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.offsetWidth || 800;
+  const H = 160;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const pad = { top: 12, right: 16, bottom: 28, left: 52 };
+  const cw = W - pad.left - pad.right;
+  const ch = H - pad.top - pad.bottom;
+
+  const vals = points.map(p => p.v);
+  const minV = Math.min(...vals), maxV = Math.max(...vals);
+  const range = maxV - minV || 1;
+  const times = points.map(p => p.t.getTime());
+  const minT = Math.min(...times), maxT = Math.max(...times);
+  const trange = maxT - minT || 1;
+
+  const px = i => pad.left + ((times[i] - minT) / trange) * cw;
+  const py = i => pad.top + ch - ((vals[i] - minV) / range) * ch;
+
+  // Style
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark' ||
+    (!document.documentElement.getAttribute('data-theme') && window.matchMedia('(prefers-color-scheme:dark)').matches);
+  const lineColor = isDark ? '#f07030' : '#e8610a';
+  const fillStart = isDark ? 'rgba(240,112,48,0.22)' : 'rgba(232,97,10,0.15)';
+  const fillEnd = isDark ? 'rgba(240,112,48,0)' : 'rgba(232,97,10,0)';
+  const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+  const labelColor = isDark ? '#6e6560' : '#9c9490';
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Grid lines
+  for (let i = 0; i <= 3; i++) {
+    const y = pad.top + (ch / 3) * i;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + cw, y);
+    ctx.strokeStyle = gridColor; ctx.lineWidth = 1; ctx.stroke();
+    const val = Math.round(maxV - (range / 3) * i);
+    ctx.fillStyle = labelColor; ctx.font = '10px Inter,system-ui,sans-serif';
+    ctx.textAlign = 'right'; ctx.fillText('#' + val.toLocaleString('fr-FR'), pad.left - 4, y + 3);
+  }
+
+  // Fill area
+  const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + ch);
+  grad.addColorStop(0, fillStart); grad.addColorStop(1, fillEnd);
+  ctx.beginPath(); ctx.moveTo(px(0), py(0));
+  for (let i = 1; i < points.length; i++) ctx.lineTo(px(i), py(i));
+  ctx.lineTo(px(points.length - 1), pad.top + ch);
+  ctx.lineTo(px(0), pad.top + ch);
+  ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
+
+  // Line
+  ctx.beginPath(); ctx.moveTo(px(0), py(0));
+  for (let i = 1; i < points.length; i++) ctx.lineTo(px(i), py(i));
+  ctx.strokeStyle = lineColor; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.stroke();
+
+  // X-axis date labels
+  const labelCount = Math.min(4, points.length);
+  const step = Math.floor(points.length / labelCount);
+  ctx.fillStyle = labelColor; ctx.font = '10px Inter,system-ui,sans-serif'; ctx.textAlign = 'center';
+  for (let i = 0; i < labelCount; i++) {
+    const idx = i * step;
+    const d = points[idx].t;
+    const label = d.toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit' });
+    ctx.fillText(label, px(idx), H - 6);
+  }
+}
+
+// ---- Render History table ----
+function renderHistoryTable() {
+  const h = loadHistory();
+  const search = (document.getElementById('histSearch')?.value || '').toLowerCase();
+  const brand = document.getElementById('filterBrand')?.value || '';
+  const cat = document.getElementById('filterCat')?.value || '';
+  const mkt = document.getElementById('filterMarket')?.value || '';
+
+  // Populate filters
+  const brands = [...new Set(h.map(x => x.brand).filter(Boolean).filter(b => b !== '—'))];
+  const cats = [...new Set(h.map(x => x.category).filter(Boolean).filter(c => c !== '—'))];
+  const bSel = document.getElementById('filterBrand');
+  const cSel = document.getElementById('filterCat');
+  if (bSel) {
+    const cur = bSel.value;
+    bSel.innerHTML = '<option value="">Toutes les marques</option>' + brands.map(b => `<option value="${escH(b)}"${b===cur?' selected':''}>${escH(b)}</option>`).join('');
+  }
+  if (cSel) {
+    const cur = cSel.value;
+    cSel.innerHTML = '<option value="">Toutes les catégories</option>' + cats.map(c => `<option value="${escH(c)}"${c===cur?' selected':''}>${escH(c)}</option>`).join('');
+  }
+
+  let filtered = h.filter(x => {
+    if (search && !x.title?.toLowerCase().includes(search) && !x.asin?.toLowerCase().includes(search)) return false;
+    if (brand && x.brand !== brand) return false;
+    if (cat && x.category !== cat) return false;
+    if (mkt && String(x.domain) !== mkt) return false;
+    return true;
+  });
+
+  const wrap = document.getElementById('histTableWrap');
+  if (h.length === 0) {
+    wrap.innerHTML = '<div class="hist-empty">Aucun produit sauvegardé.<br>Lance une analyse et clique sur "Sauvegarder".</div>';
+    return;
+  }
+  if (filtered.length === 0) {
+    wrap.innerHTML = '<div class="hist-empty">Aucun résultat pour ces filtres.</div>';
+    return;
+  }
+
+  const rows = filtered.map((x, i) => {
+    const pct = x.marginPct;
+    const cls = pct === null ? '' : pct >= 15 ? 'green' : pct >= 5 ? 'yellow' : 'red';
+    const pillHtml = pct !== null ? `<span class="margin-pill ${cls}">${fmtPct(pct)}</span>` : '<span style="color:var(--fg-3);font-size:12px">—</span>';
+    const market = MARKETS[x.domain]?.label || '—';
+    const date = new Date(x.savedAt).toLocaleDateString('fr-FR');
+    return `<tr>
+      <td><div class="hist-asin">${escH(x.asin)}</div></td>
+      <td><div class="hist-name" title="${escH(x.title)}">${escH(x.title?.substring(0,50))}${x.title?.length>50?'…':''}</div></td>
+      <td>${escH(x.brand || '—')}</td>
+      <td><span style="font-size:12px">${escH(x.category || '—')}</span></td>
+      <td><span style="font-size:12px">${market}</span></td>
+      <td>${pillHtml}</td>
+      <td style="font-size:12px;color:var(--fg-3)">${date}</td>
+      <td>
+        <button class="hist-action-btn" title="Recharger" onclick="reloadFromHistory(${i})">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8A6 6 0 1 1 4 12.5"/><polyline points="2 8 2 4 6 4"/></svg>
+        </button>
+        <button class="hist-action-btn del-btn" title="Supprimer" onclick="removeFromHistory('${escH(x.asin)}', ${x.domain})">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  wrap.innerHTML = `<div class="hist-table-wrap"><table class="hist-table">
+    <thead><tr>
+      <th>ASIN</th><th>Produit</th><th>Marque</th><th>Catégorie</th><th>Marché</th><th>Marge</th><th>Sauvegardé</th><th></th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`;
+}
+
+function reloadFromHistory(filteredIdx) {
+  const h = loadHistory();
+  const search = (document.getElementById('histSearch')?.value || '').toLowerCase();
+  const brand = document.getElementById('filterBrand')?.value || '';
+  const cat = document.getElementById('filterCat')?.value || '';
+  const mkt = document.getElementById('filterMarket')?.value || '';
+  const filtered = h.filter(x => {
+    if (search && !x.title?.toLowerCase().includes(search) && !x.asin?.toLowerCase().includes(search)) return false;
+    if (brand && x.brand !== brand) return false;
+    if (cat && x.category !== cat) return false;
+    if (mkt && String(x.domain) !== mkt) return false;
+    return true;
+  });
+  const item = filtered[filteredIdx];
+  if (!item) return;
+  document.getElementById('asinInput').value = item.asin;
+  document.querySelectorAll('.market-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.domain) === item.domain));
+  selectedDomain = item.domain;
+  if (item.buyPrice) document.getElementById('buyPrice').value = item.buyPrice;
+  switchTab('analyze');
+  fetchProduct(item.asin, item.domain);
+}
+
+function removeFromHistory(asin, domain) {
+  let h = loadHistory();
+  h = h.filter(x => !(x.asin === asin && x.domain === domain));
+  saveHistory(h);
+  updateHistBadge();
+  renderHistoryTable();
+  if (currentData?.asin === asin && currentData?.domain === domain) renderAnalyzeResult(currentData);
+}
+
+document.getElementById('clearHistBtn')?.addEventListener('click', () => {
+  saveHistory([]); updateHistBadge(); renderHistoryTable();
+});
+
+['histSearch','filterBrand','filterCat','filterMarket'].forEach(id => {
+  document.getElementById(id)?.addEventListener('input', renderHistoryTable);
+  document.getElementById(id)?.addEventListener('change', renderHistoryTable);
+});
+
+updateHistBadge();
+</script>
