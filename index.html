@@ -659,7 +659,7 @@ function renderAnalyzeResult(data) {
   const netMargin = (sellPriceHT && totalCost > 0 && fees) ? sellPriceHT - totalCost - fees.total : null;
   const marginPct = (netMargin !== null && sellPriceHT > 0) ? (netMargin / sellPriceHT) * 100 : null;
   const roi = (netMargin !== null && totalCost > 0) ? (netMargin / totalCost) * 100 : null;
-  const breakeven = fees ? totalCost + fees.total : null;
+  const breakeven = fees ? (totalCost > 0 ? totalCost + fees.total : fees.total) : null;
 
   let marginClass = 'yellow', marginLabel = 'Marge faible', marginAdvice = '';
   if (marginPct !== null) {
@@ -686,12 +686,12 @@ function renderAnalyzeResult(data) {
           </div>
         </div>
       </div>
-      ${netMargin !== null && totalCost > 0 ? `
+      ${sellingPrice ? `
         <div class="kpi-grid">
-          <div class="kpi-tile highlight">
+          <div class="kpi-tile${netMargin !== null ? ' highlight' : ''}">
             <div class="kpi-label">Marge nette</div>
-            <div class="kpi-val">${fmtPct(marginPct)}</div>
-            <div class="kpi-note">${fmt(netMargin)} / unité</div>
+            <div class="kpi-val">${netMargin !== null ? fmtPct(marginPct) : '—'}</div>
+            <div class="kpi-note">${netMargin !== null ? fmt(netMargin) + ' / unité' : 'Saisir prix d\'achat'}</div>
           </div>
           <div class="kpi-tile">
             <div class="kpi-label">ROI</div>
@@ -705,16 +705,16 @@ function renderAnalyzeResult(data) {
           </div>
           <div class="kpi-tile">
             <div class="kpi-label">Coût total HT</div>
-            <div class="kpi-val">${fmt(totalCost)}</div>
-            <div class="kpi-note">Achat HT${extraFees > 0 ? ` + ${fmt(extraFees)} frais` : ''}</div>
+            <div class="kpi-val">${totalCost > 0 ? fmt(totalCost) : '—'}</div>
+            <div class="kpi-note">${totalCost > 0 ? ('Achat HT' + (extraFees > 0 ? ` + ${fmt(extraFees)} frais` : '')) : 'Saisir prix d\'achat'}</div>
           </div>
         </div>
-        <div class="margin-result ${marginClass}">
+        ${netMargin !== null ? `<div class="margin-result ${marginClass}">
           <div class="margin-big">${marginLabel}</div>
           <div class="margin-detail">
             <div class="margin-detail-text">${marginAdvice}</div>
           </div>
-        </div>` : ''}
+        </div>` : ''}` : ''}
       ${sellingPrice && fees ? `
         <div class="fees-grid">
           <div class="fee-tile"><div class="fee-tile-label">PV HT</div><div class="fee-tile-val">${sellPriceHT ? fmt(sellPriceHT) : '—'}</div><div class="fee-tile-note">TVA ${(vatSellRate*100).toFixed(1)} %</div></div>
