@@ -506,7 +506,7 @@ function showAnalyzeError(msg) {
 
 // ---- Parse Keepa ----
 function parseKeepa(data) {
-  const p = data.product;
+  const p = data.product || (Array.isArray(data.products) ? data.products[0] : null);
   if (!p) return {};
   let sellingPrice = null;
   if (p.csv) {
