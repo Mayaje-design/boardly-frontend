@@ -613,16 +613,38 @@ function parseKeepa(data) {
   const p = data.product || (Array.isArray(data.products) ? data.products[0] : null);
   if (!p) return {};
 
-  // Prix de vente
+  // Prix de vente — cherche dans tous les index csv pertinents
+  // csv[0]=Amazon, csv[1]=Marketplace new, csv[10]=collecteur, csv[18]=autre marketplace
+  function lastPositive(arr) {
+    if (!arr?.length) return null;
+    for (let i = arr.length - 1; i >= 0; i--) { if (arr[i] > 0) return arr[i] / 100; }
+    return null;
+  }
   let sellingPrice = null;
   if (p.csv) {
-    if (p.csv[0]?.length >= 2) { const v = p.csv[0][p.csv[0].length-1]; if (v > 0) sellingPrice = v/100; }
-    if (!sellingPrice && p.csv[18]?.length >= 2) { const v = p.csv[18][p.csv[18].length-1]; if (v > 0) sellingPrice = v/100; }
+    sellingPrice = lastPositive(p.csv[0])
+      || lastPositive(p.csv[1])
+      || lastPositive(p.csv[10])
+      || lastPositive(p.csv[18]);
   }
   if (!sellingPrice && p.stats) {
-    if (p.stats.current?.[0] > 0) sellingPrice = p.stats.current[0]/100;
-    else if (p.stats.avg30?.[0] > 0) sellingPrice = p.stats.avg30[0]/100;
+    const idxs = [0,1,2,3,7,10,11,18];
+    for (const i of idxs) {
+      if (p.stats.current?.[i] > 0) { sellingPrice = p.stats.current[i]/100; break; }
+    }
   }
+  if (!sellingPrice && p.stats?.avg30) {
+    if (p.stats.avg30[0] > 0) sellingPrice = p.stats.avg30[0]/100;
+    else if (p.stats.avg30[1] > 0) sellingPrice = p.stats.avg30[1]/100;
+  }
+
+  // Prix moyens 30j / 90j
+  function avgPrice(statsObj, idx) {
+    if (statsObj?.[idx] > 0) return statsObj[idx] / 100;
+    return null;
+  }
+  const avg30Price = avgPrice(p.stats?.avg30, 0) || avgPrice(p.stats?.avg30, 1);
+  const avg90Price = avgPrice(p.stats?.avg90, 0) || avgPrice(p.stats?.avg90, 1);
 
   const title = p.title || 'Produit sans titre';
   const brand = p.brand || null;
@@ -641,10 +663,27 @@ function parseKeepa(data) {
   // Variantes
   const variantCount = p.variations?.length || null;
 
-  // Dimensions & poids
-  const packageWeight = p.packageWeight ? (p.packageWeight / 1000).toFixed(0) + ' g' : null;
-  const packageDims = (p.packageLength && p.packageWidth && p.packageHeight)
-    ? `${p.packageLength}×${p.packageWidth}×${p.packageHeight} cm` : null;
+  // Dimensions & poids — Keepa en mm/g
+  const packageWeightG = p.packageWeight || p.itemWeight || null;
+  const packageWeight = packageWeightG ? `${packageWeightG} g` : null;
+  const pL = p.packageLength || p.itemLength;
+  const pW = p.packageWidth || p.itemWidth;
+  const pH = p.packageHeight || p.itemHeight;
+  const packageDims = (pL && pW && pH) ? `${pL}×${pW}×${pH} cm` : null;
+
+  // BSR drops (nombre de fois où le BSR a baissé = vente estimée) sur 30j
+  let bsrDrops = null;
+  if (salesHistory.length >= 2) {
+    let drops = 0;
+    // Filtrer les 30 derniers jours (Keepa time: minutes depuis 2011-01-01)
+    const now = Math.floor(Date.now()/60000) - 21564000;
+    const cutoff = now - 43200; // 30j en minutes
+    const recent = salesHistory.filter(x => x.t >= cutoff);
+    for (let i = 1; i < recent.length; i++) {
+      if (recent[i].v < recent[i-1].v) drops++;
+    }
+    if (recent.length >= 2) bsrDrops = drops;
+  }
 
   // Sales rank history for chart (csv[3] = Sales Rank Amazon)
   let salesHistory = [];
@@ -688,9 +727,10 @@ function parseKeepa(data) {
   }
 
   return {
-    sellingPrice, title, brand, category, imageUrl, salesRank, salesHistory, firstAvail,
+    sellingPrice, avg30Price, avg90Price,
+    title, brand, category, imageUrl, salesRank, salesHistory, firstAvail,
     rating, reviewCount, reviewCount30d, offerCount, variantCount,
-    packageWeight, packageDims, bsrTrend, estimatedMonthlySales
+    packageWeight, packageDims, bsrTrend, bsrDrops, estimatedMonthlySales
   };
 }
 
@@ -795,19 +835,21 @@ function getExtraParams() {
 
 function renderAnalyzeResult(data) {
   const _p = parseKeepa(data);
-  const { sellingPrice, brand, category, imageUrl, salesRank, rating, reviewCount, reviewCount30d,
-          offerCount, variantCount, packageWeight, packageDims, bsrTrend, estimatedMonthlySales } = _p;
+  const { sellingPrice, avg30Price, avg90Price, brand, category, imageUrl, salesRank,
+          rating, reviewCount, reviewCount30d, offerCount, variantCount,
+          packageWeight, packageDims, bsrTrend, bsrDrops, estimatedMonthlySales } = _p;
   const title = _p.title || 'Produit sans titre';
   const market = MARKETS[data.domain];
   const buyPrice = parseFloat(document.getElementById('buyPrice').value) || 0;
   const { extraFees, vatBuyRate, vatSellRate, saleMarket } = getExtraParams();
-  // Si pas de prix Amazon, utiliser le prix d'achat comme référence (cas smartphone d'occasion etc.)
-  const refPrice = sellingPrice || (buyPrice > 0 ? buyPrice : null);
+  // Si pas de prix actuel, utiliser moy 30j > moy 90j > prix d'achat comme référence
+  const refPrice = sellingPrice || avg30Price || avg90Price || (buyPrice > 0 ? buyPrice : null);
   const fees = refPrice ? estimateFees(refPrice) : null;
 
   const buyPriceHT = vatBuyRate > 0 ? buyPrice / (1 + vatBuyRate / 100) : buyPrice;
   const totalCost = buyPriceHT + extraFees;
-  const sellPriceHT = sellingPrice ? sellingPrice / (1 + vatSellRate) : null;
+  const effectivePrice = sellingPrice || avg30Price || avg90Price || null;
+  const sellPriceHT = effectivePrice ? effectivePrice / (1 + vatSellRate) : null;
   const netMargin = (sellPriceHT && totalCost > 0 && fees) ? sellPriceHT - totalCost - fees.total : null;
   const marginPct = (netMargin !== null && sellPriceHT > 0) ? (netMargin / sellPriceHT) * 100 : null;
   const roi = (netMargin !== null && totalCost > 0) ? (netMargin / totalCost) * 100 : null;
@@ -857,6 +899,9 @@ function renderAnalyzeResult(data) {
   const bsrTrendRow = bsrTrend !== null
     ? row('📈', bsrTrend>0, 'Tendance ventes 90j', `${bsrTrend>0?'+':''}${bsrTrend}%`, bsrTrend>10?'Ventes en croissance':bsrTrend>0?'Stable':'En recul')
     : '';
+  const bsrDropsRow = bsrDrops !== null
+    ? row('🔻', bsrDrops>=5, 'BSR drops (30j)', `${bsrDrops} fois`, bsrDrops>=10?'très actif':bsrDrops>=5?'actif':'peu de ventes')
+    : '';
   const ratingRow = rating !== null
     ? row('⭐', rating>=4, 'Note produit', `${rating.toFixed(1)} ★${reviewCount ? ` · ${reviewCount.toLocaleString('fr-FR')} avis` : ''}${reviewCount30d ? ` (+${reviewCount30d}/30j)` : ''}`, null)
     : '';
@@ -882,7 +927,9 @@ function renderAnalyzeResult(data) {
           <div class="asin-chip">${escH(data.asin)}</div>
           <div class="product-title">${escH(title.substring(0,110))}${title.length>110?'…':''}</div>
           <div class="product-price-row">
-            ${sellingPrice ? `<span class="product-amz-price">${fmt(sellingPrice)}</span><span class="product-amz-label">prix ${market.label}</span>` : '<span style="font-size:12px;color:var(--fg-3)">Prix non disponible</span>'}
+            ${sellingPrice ? `<span class="product-amz-price">${fmt(sellingPrice)}</span><span class="product-amz-label">Actuel ${market.label}</span>` : '<span style="font-size:12px;color:var(--fg-3)">Prix non disponible</span>'}
+            ${avg30Price ? `<span class="chip" style="background:var(--accent-bg);color:var(--accent)">Moy. 30j : ${fmt(avg30Price)}</span>` : ''}
+            ${avg90Price ? `<span class="chip">Moy. 90j : ${fmt(avg90Price)}</span>` : ''}
             ${salesRank ? `<span class="chip">#${salesRank.toLocaleString('fr-FR')} BSR</span>` : ''}
             <a href="${escH(asinLink)}" target="_blank" rel="noopener" style="font-size:12px;color:var(--accent);text-decoration:none">Voir sur Amazon →</a>
           </div>
@@ -918,7 +965,7 @@ function renderAnalyzeResult(data) {
           <span>📋 RÉSUMÉ DE L'ANALYSE</span>
           <span class="score-badge" style="background:${scoreColor}20;color:${scoreColor};border-color:${scoreColor}40">Score global : <b>${score}/100</b> — ${scoreLabel}</span>
         </div>
-        ${marginRow}${profitRow}${roiRow}${ventesRow}${offresRow}${bsrTrendRow}${ratingRow}${dimsRow}${variantsRow}${qtyRow}
+        ${marginRow}${profitRow}${roiRow}${ventesRow}${offresRow}${bsrTrendRow}${bsrDropsRow}${ratingRow}${dimsRow}${variantsRow}${qtyRow}
         <div class="verdict-row">
           <span style="font-size:16px">${verdictIcon}</span>
           <span style="font-size:13px;font-weight:700">${verdict}</span>
