@@ -613,38 +613,34 @@ function parseKeepa(data) {
   const p = data.product || (Array.isArray(data.products) ? data.products[0] : null);
   if (!p) return {};
 
-  // Prix de vente — cherche dans tous les index csv pertinents
-  // csv[0]=Amazon, csv[1]=Marketplace new, csv[10]=collecteur, csv[18]=autre marketplace
-  function lastPositive(arr) {
+  // Prix de vente — csv Keepa = [t0,v0, t1,v1, ...], valeurs en centimes, -1 = indisponible
+  // Cherche la dernière valeur positive sur les index valeur (impairs dans paires t/v)
+  function lastCsvPrice(arr) {
     if (!arr?.length) return null;
-    for (let i = arr.length - 1; i >= 0; i--) { if (arr[i] > 0) return arr[i] / 100; }
+    // Les valeurs sont aux indices impairs (index 1, 3, 5...) dans le tableau plat
+    for (let i = arr.length - 1; i >= 1; i -= 2) {
+      if (arr[i] > 0) return arr[i] / 100;
+    }
     return null;
   }
   let sellingPrice = null;
+  // csv[0]=Amazon, csv[18]=marketplace — on évite csv[1] et csv[10] qui donnent des prix faussés
   if (p.csv) {
-    sellingPrice = lastPositive(p.csv[0])
-      || lastPositive(p.csv[1])
-      || lastPositive(p.csv[10])
-      || lastPositive(p.csv[18]);
+    sellingPrice = lastCsvPrice(p.csv[0]) || lastCsvPrice(p.csv[18]);
   }
-  if (!sellingPrice && p.stats) {
-    const idxs = [0,1,2,3,7,10,11,18];
-    for (const i of idxs) {
-      if (p.stats.current?.[i] > 0) { sellingPrice = p.stats.current[i]/100; break; }
-    }
-  }
-  if (!sellingPrice && p.stats?.avg30) {
-    if (p.stats.avg30[0] > 0) sellingPrice = p.stats.avg30[0]/100;
-    else if (p.stats.avg30[1] > 0) sellingPrice = p.stats.avg30[1]/100;
-  }
+  // Fallback sur stats.current[0] = prix Amazon actuel (déjà en centimes)
+  if (!sellingPrice && p.stats?.current?.[0] > 0) sellingPrice = p.stats.current[0] / 100;
+  // Sanity check : prix > 5000€ = donnée aberrante, on ignore
+  if (sellingPrice && sellingPrice > 5000) sellingPrice = null;
 
-  // Prix moyens 30j / 90j
-  function avgPrice(statsObj, idx) {
-    if (statsObj?.[idx] > 0) return statsObj[idx] / 100;
+  // Prix moyens 30j / 90j — stats.avg30/avg90[0] = Amazon, en centimes
+  function statPrice(statsObj, idx) {
+    const v = statsObj?.[idx];
+    if (v > 0 && v < 500000) return v / 100; // sanity check
     return null;
   }
-  const avg30Price = avgPrice(p.stats?.avg30, 0) || avgPrice(p.stats?.avg30, 1);
-  const avg90Price = avgPrice(p.stats?.avg90, 0) || avgPrice(p.stats?.avg90, 1);
+  const avg30Price = statPrice(p.stats?.avg30, 0) || statPrice(p.stats?.avg30, 18);
+  const avg90Price = statPrice(p.stats?.avg90, 0) || statPrice(p.stats?.avg90, 18);
 
   const title = p.title || 'Produit sans titre';
   const brand = p.brand || null;
@@ -652,10 +648,12 @@ function parseKeepa(data) {
   const imageUrl = p.imagesCSV ? `https://images-na.ssl-images-amazon.com/images/I/${p.imagesCSV.split(',')[0]}` : null;
   const salesRank = p.stats?.current?.[3] || null;
 
-  // Rating & avis
-  const rating = p.stats?.current?.[16] ? p.stats.current[16] / 10 : null;
-  const reviewCount = p.stats?.current?.[17] || null;
-  const reviewCount30d = p.stats?.avg30?.[17] ? Math.max(0, (p.stats.current?.[17]||0) - (p.stats.avg30[17]||0)) : null;
+  // Rating & avis — stats.current[16] = note×10, doit être entre 10 et 50
+  const ratingRaw = p.stats?.current?.[16];
+  const rating = (ratingRaw > 0 && ratingRaw <= 50) ? ratingRaw / 10 : null;
+  const reviewCount = p.stats?.current?.[17] > 0 ? p.stats.current[17] : null;
+  const reviewCount30d = (reviewCount && p.stats?.avg30?.[17] > 0)
+    ? Math.max(0, reviewCount - p.stats.avg30[17]) : null;
 
   // Nombre d'offres (vendeurs)
   const offerCount = p.stats?.current?.[11] || null;
@@ -663,13 +661,15 @@ function parseKeepa(data) {
   // Variantes
   const variantCount = p.variations?.length || null;
 
-  // Dimensions & poids — Keepa en mm/g
+  // Dimensions & poids — Keepa donne en mm et g
   const packageWeightG = p.packageWeight || p.itemWeight || null;
-  const packageWeight = packageWeightG ? `${packageWeightG} g` : null;
+  const packageWeight = packageWeightG > 0 ? `${packageWeightG} g` : null;
   const pL = p.packageLength || p.itemLength;
   const pW = p.packageWidth || p.itemWidth;
   const pH = p.packageHeight || p.itemHeight;
-  const packageDims = (pL && pW && pH) ? `${pL}×${pW}×${pH} cm` : null;
+  // Convertir mm → cm (diviser par 10)
+  const packageDims = (pL > 0 && pW > 0 && pH > 0)
+    ? `${(pL/10).toFixed(0)}×${(pW/10).toFixed(0)}×${(pH/10).toFixed(0)} cm` : null;
 
   // Sales rank history for chart (csv[3] = Sales Rank Amazon)
   let salesHistory = [];
