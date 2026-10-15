@@ -273,6 +273,34 @@ canvas.chart-canvas { width: 100%; height: 160px; display: block; border-radius:
 }
 .meta-chip-label { font-size: 11px; color: var(--fg-3); }
 
+/* Extra fields */
+.extra-fields { padding: 12px 16px 4px; border-top: 1px solid var(--border); }
+.extra-fields-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px 16px; }
+.extra-field-group { display: flex; flex-direction: column; gap: 5px; }
+.extra-label { font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--fg-3); }
+.extra-hint { font-size: 11px; color: var(--fg-3); font-style: italic; }
+.extra-select {
+  padding: 7px 10px; border: 1.5px solid var(--border); border-radius: 8px;
+  background: var(--bg); color: var(--fg); font-size: 13px; outline: none;
+  cursor: pointer; transition: border-color 0.15s;
+}
+.extra-select:focus { border-color: var(--accent); }
+.market-chips { display: flex; gap: 5px; flex-wrap: wrap; }
+.mchip {
+  padding: 5px 10px; border-radius: 20px; border: 1.5px solid var(--border);
+  background: var(--bg); color: var(--fg-2); font-size: 12px; font-weight: 500;
+  cursor: pointer; transition: all 0.12s;
+}
+.mchip.active { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
+/* KPI grid */
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.kpi-tile { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+.kpi-label { font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--fg-3); margin-bottom: 4px; }
+.kpi-val { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.kpi-note { font-size: 11px; color: var(--fg-3); margin-top: 2px; }
+.kpi-tile.highlight { border-color: var(--accent); background: var(--accent-bg); }
+.kpi-tile.highlight .kpi-val { color: var(--accent); }
+
 /* Error */
 .error-card {
   background: var(--red-bg); border: 1px solid var(--red); border-radius: var(--radius);
@@ -370,6 +398,48 @@ table.hist-table { width: 100%; border-collapse: collapse; min-width: 600px; }
         </div>
         <span style="font-size:12px;color:var(--fg-3);font-style:italic">Modifier pour recalculer</span>
       </div>
+      <div class="extra-fields" id="extraFields" hidden>
+        <div class="extra-fields-grid">
+          <div class="extra-field-group">
+            <label class="extra-label">Frais divers (€/unité)</label>
+            <div class="price-input-wrap">
+              <span class="price-currency">€</span>
+              <input type="number" id="extraFees" min="0" step="0.01" placeholder="0.00" inputmode="decimal">
+            </div>
+            <span class="extra-hint">Prépa, transport, étiquetage…</span>
+          </div>
+          <div class="extra-field-group">
+            <label class="extra-label">TVA achat</label>
+            <select id="vatBuy" class="extra-select">
+              <option value="0">Hors taxe (HT)</option>
+              <option value="20" selected>France 20 %</option>
+              <option value="19">Allemagne 19 %</option>
+              <option value="22">Italie 22 %</option>
+              <option value="21">Espagne 21 %</option>
+              <option value="0.2">UK 20 %</option>
+            </select>
+          </div>
+          <div class="extra-field-group">
+            <label class="extra-label">TVA vente produit</label>
+            <select id="vatSell" class="extra-select">
+              <option value="standard">Standard (20 %)</option>
+              <option value="reduced">Réduit (5,5 %)</option>
+              <option value="super_reduced">Super-réduit (2,1 %)</option>
+              <option value="zero">Zéro / exonéré</option>
+            </select>
+          </div>
+          <div class="extra-field-group">
+            <label class="extra-label">Marché de vente</label>
+            <div class="market-chips" id="saleMarkets">
+              <button class="mchip active" data-m="fr">🇫🇷 FR</button>
+              <button class="mchip" data-m="de">🇩🇪 DE</button>
+              <button class="mchip" data-m="it">🇮🇹 IT</button>
+              <button class="mchip" data-m="es">🇪🇸 ES</button>
+              <button class="mchip" data-m="uk">🇬🇧 UK</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
     <div id="analyzeResults"></div>
   </div>
@@ -460,6 +530,19 @@ document.getElementById('buyPrice').addEventListener('input', () => {
   if (currentData) renderAnalyzeResult(currentData);
 });
 
+// ---- Extra fields events ----
+['extraFees', 'vatBuy', 'vatSell'].forEach(id => {
+  document.getElementById(id)?.addEventListener('change', () => { if (currentData) renderAnalyzeResult(currentData); });
+  document.getElementById(id)?.addEventListener('input', () => { if (currentData) renderAnalyzeResult(currentData); });
+});
+document.querySelectorAll('.mchip').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.mchip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (currentData) renderAnalyzeResult(currentData);
+  });
+});
+
 // ---- Fees calc ----
 function estimateFees(price) {
   const ref = Math.max(price * 0.085, 0.30);
@@ -487,6 +570,7 @@ async function fetchProduct(asin, domain) {
     const data = await r.json();
     currentData = { ...data, domain, asin };
     document.getElementById('priceRow').hidden = false;
+    document.getElementById('extraFields').hidden = false;
     renderAnalyzeResult(currentData);
     renderDetailTab(currentData);
     updateHistBadge();
@@ -546,15 +630,36 @@ function parseKeepa(data) {
 }
 
 // ---- Render Analyze tab ----
+function getExtraParams() {
+  const extraFees = parseFloat(document.getElementById('extraFees')?.value) || 0;
+  const vatBuyRate = parseFloat(document.getElementById('vatBuy')?.value) || 0;
+  const vatSellType = document.getElementById('vatSell')?.value || 'standard';
+  const vatSellRates = { standard: 0.20, reduced: 0.055, super_reduced: 0.021, zero: 0 };
+  const vatSellRate = vatSellRates[vatSellType] ?? 0.20;
+  const saleMarket = document.querySelector('.mchip.active')?.dataset.m || 'fr';
+  return { extraFees, vatBuyRate, vatSellRate, saleMarket };
+}
+
 function renderAnalyzeResult(data) {
   const _p = parseKeepa(data);
   const { sellingPrice, brand, category, imageUrl, salesRank } = _p;
   const title = _p.title || 'Produit sans titre';
   const market = MARKETS[data.domain];
   const buyPrice = parseFloat(document.getElementById('buyPrice').value) || 0;
+  const { extraFees, vatBuyRate, vatSellRate, saleMarket } = getExtraParams();
   const fees = sellingPrice ? estimateFees(sellingPrice) : null;
-  const netMargin = (sellingPrice && buyPrice > 0 && fees) ? sellingPrice - buyPrice - fees.total : null;
-  const marginPct = (netMargin !== null && sellingPrice > 0) ? (netMargin / sellingPrice) * 100 : null;
+
+  // Coût d'achat HT (enlever TVA achat si incluse)
+  const buyPriceHT = vatBuyRate > 0 ? buyPrice / (1 + vatBuyRate / 100) : buyPrice;
+  const totalCost = buyPriceHT + extraFees;
+
+  // Prix de vente HT (Amazon affiche TTC en général)
+  const sellPriceHT = sellingPrice ? sellingPrice / (1 + vatSellRate) : null;
+
+  const netMargin = (sellPriceHT && totalCost > 0 && fees) ? sellPriceHT - totalCost - fees.total : null;
+  const marginPct = (netMargin !== null && sellPriceHT > 0) ? (netMargin / sellPriceHT) * 100 : null;
+  const roi = (netMargin !== null && totalCost > 0) ? (netMargin / totalCost) * 100 : null;
+  const breakeven = fees ? totalCost + fees.total : null;
 
   let marginClass = 'yellow', marginLabel = 'Marge faible', marginAdvice = '';
   if (marginPct !== null) {
@@ -563,6 +668,7 @@ function renderAnalyzeResult(data) {
     else { marginClass = 'red'; marginLabel = 'Non rentable'; marginAdvice = 'Marge insuffisante pour couvrir les frais et risques FBA.'; }
   }
 
+  const marketFlags = { fr:'🇫🇷', de:'🇩🇪', it:'🇮🇹', es:'🇪🇸', uk:'🇬🇧' };
   const asinLink = `https://www.amazon.${market.tld}/dp/${data.asin}`;
   const isSaved = loadHistory().some(h => h.asin === data.asin && h.domain === data.domain);
 
@@ -580,29 +686,54 @@ function renderAnalyzeResult(data) {
           </div>
         </div>
       </div>
+      ${netMargin !== null && totalCost > 0 ? `
+        <div class="kpi-grid">
+          <div class="kpi-tile highlight">
+            <div class="kpi-label">Marge nette</div>
+            <div class="kpi-val">${fmtPct(marginPct)}</div>
+            <div class="kpi-note">${fmt(netMargin)} / unité</div>
+          </div>
+          <div class="kpi-tile">
+            <div class="kpi-label">ROI</div>
+            <div class="kpi-val">${roi !== null ? fmtPct(roi) : '—'}</div>
+            <div class="kpi-note">Retour sur invest.</div>
+          </div>
+          <div class="kpi-tile">
+            <div class="kpi-label">Seuil rentabilité</div>
+            <div class="kpi-val">${breakeven ? fmt(breakeven * (1 + vatSellRate)) : '—'}</div>
+            <div class="kpi-note">Prix vente min. TTC</div>
+          </div>
+          <div class="kpi-tile">
+            <div class="kpi-label">Coût total HT</div>
+            <div class="kpi-val">${fmt(totalCost)}</div>
+            <div class="kpi-note">Achat HT${extraFees > 0 ? ` + ${fmt(extraFees)} frais` : ''}</div>
+          </div>
+        </div>
+        <div class="margin-result ${marginClass}">
+          <div class="margin-big">${marginLabel}</div>
+          <div class="margin-detail">
+            <div class="margin-detail-text">${marginAdvice}</div>
+          </div>
+        </div>` : ''}
       ${sellingPrice && fees ? `
         <div class="fees-grid">
+          <div class="fee-tile"><div class="fee-tile-label">PV HT</div><div class="fee-tile-val">${sellPriceHT ? fmt(sellPriceHT) : '—'}</div><div class="fee-tile-note">TVA ${(vatSellRate*100).toFixed(1)} %</div></div>
           <div class="fee-tile"><div class="fee-tile-label">Commission</div><div class="fee-tile-val">${fmt(fees.ref)}</div><div class="fee-tile-note">~8,5 %</div></div>
           <div class="fee-tile"><div class="fee-tile-label">Frais FBA</div><div class="fee-tile-val">${fmt(fees.fba)}</div><div class="fee-tile-note">Fulfillment</div></div>
           <div class="fee-tile"><div class="fee-tile-label">Stockage</div><div class="fee-tile-val">${fmt(fees.storage)}</div><div class="fee-tile-note">Mensuel estimé</div></div>
           <div class="fee-tile"><div class="fee-tile-label">Total frais</div><div class="fee-tile-val">${fmt(fees.total)}</div><div class="fee-tile-note">${((fees.total/sellingPrice)*100).toFixed(1)} % PV</div></div>
         </div>` : ''}
-      ${netMargin !== null && buyPrice > 0 ? `
-        <div class="margin-result ${marginClass}">
-          <div class="margin-big">${fmtPct(marginPct)}</div>
-          <div class="margin-detail">
-            <div class="margin-detail-title">${marginLabel}</div>
-            <div class="margin-detail-text">Marge nette : <b>${fmt(netMargin)}</b> · ${marginAdvice}</div>
-          </div>
-        </div>
+      ${netMargin !== null && totalCost > 0 ? `
         <div class="breakdown">
-          <div class="brow"><span>Prix de vente</span><span class="bval neutral">${fmt(sellingPrice)}</span></div>
-          <div class="brow"><span>Prix d'achat</span><span class="bval neg">−${fmt(buyPrice)}</span></div>
+          <div class="brow"><span>Prix vente TTC ${marketFlags[saleMarket] || ''}</span><span class="bval neutral">${fmt(sellingPrice)}</span></div>
+          <div class="brow"><span>Prix vente HT</span><span class="bval neutral">${fmt(sellPriceHT)}</span></div>
+          <div class="brow"><span>Prix d'achat HT</span><span class="bval neg">−${fmt(buyPriceHT)}</span></div>
+          ${extraFees > 0 ? `<div class="brow"><span>Frais divers</span><span class="bval neg">−${fmt(extraFees)}</span></div>` : ''}
           <div class="brow"><span>Commission Amazon</span><span class="bval neg">−${fmt(fees.ref)}</span></div>
           <div class="brow"><span>Frais FBA</span><span class="bval neg">−${fmt(fees.fba)}</span></div>
           <div class="brow"><span>Stockage mensuel</span><span class="bval neg">−${fmt(fees.storage)}</span></div>
-          <div class="brow total"><span>Marge nette</span><span class="bval ${netMargin>=0?'pos':'neg'}">${netMargin>=0?'+':''}${fmt(netMargin)}</span></div>
-        </div>` : buyPrice===0 && sellingPrice ? `<div class="status-msg" style="font-size:13px;color:var(--fg-2)">↑ Saisissez votre prix d'achat pour calculer la marge</div>` : ''}
+          <div class="brow total"><span>Marge nette HT</span><span class="bval ${netMargin>=0?'pos':'neg'}">${netMargin>=0?'+':''}${fmt(netMargin)}</span></div>
+        </div>` : totalCost===0 && sellingPrice ? `<div class="status-msg" style="font-size:13px;color:var(--fg-2)">↑ Saisissez votre prix d'achat pour calculer la marge</div>` : ''}
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
         <button class="fav-btn${isSaved?' saved':''}" id="favBtn" onclick="toggleFav()">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="${isSaved?'currentColor':'none'}" stroke="currentColor" stroke-width="1.5"><path d="M8 13.4L3.2 8.8C1.8 7.4 2 5.1 3.5 3.9c1.2-1 2.9-.9 3.9.2L8 4.8l.6-.7c1-.9 2.7-1.1 3.9-.2 1.5 1.2 1.7 3.5.3 4.9L8 13.4z"/></svg>
