@@ -688,6 +688,7 @@ function parseKeepa(data) {
     const recent = salesHistory.slice(-3).reduce((a,x)=>a+x.v,0)/3;
     const old = salesHistory.slice(0,3).reduce((a,x)=>a+x.v,0)/3;
     if (old > 0) bsrTrend = Math.round(((old - recent) / old) * 100);
+  }
 
   // BSR drops (nombre de fois où le BSR a baissé = proxy ventes) sur 30j
   let bsrDrops = null;
@@ -700,7 +701,6 @@ function parseKeepa(data) {
       if (recent30[i].v < recent30[i-1].v) drops++;
     }
     if (recent30.length >= 2) bsrDrops = drops;
-  }
   }
 
   // Estimation ventes mensuelles via BSR (formule empirique)
