@@ -801,7 +801,9 @@ function renderAnalyzeResult(data) {
   const market = MARKETS[data.domain];
   const buyPrice = parseFloat(document.getElementById('buyPrice').value) || 0;
   const { extraFees, vatBuyRate, vatSellRate, saleMarket } = getExtraParams();
-  const fees = sellingPrice ? estimateFees(sellingPrice) : null;
+  // Si pas de prix Amazon, utiliser le prix d'achat comme référence (cas smartphone d'occasion etc.)
+  const refPrice = sellingPrice || (buyPrice > 0 ? buyPrice : null);
+  const fees = refPrice ? estimateFees(refPrice) : null;
 
   const buyPriceHT = vatBuyRate > 0 ? buyPrice / (1 + vatBuyRate / 100) : buyPrice;
   const totalCost = buyPriceHT + extraFees;
@@ -811,8 +813,8 @@ function renderAnalyzeResult(data) {
   const roi = (netMargin !== null && totalCost > 0) ? (netMargin / totalCost) * 100 : null;
   const breakeven = fees ? (totalCost > 0 ? totalCost + fees.total : fees.total) : null;
 
-  // Scoring
-  const scoring = computeScore(_p, netMargin, marginPct, roi, fees, sellingPrice);
+  // Scoring (on passe refPrice pour le critère buy box même sans prix Amazon)
+  const scoring = computeScore(_p, netMargin, marginPct, roi, fees, refPrice);
   const { score, details } = scoring;
   let scoreLabel, scoreColor;
   if (score >= 80) { scoreLabel = 'excellent'; scoreColor = 'var(--green)'; }
@@ -887,7 +889,7 @@ function renderAnalyzeResult(data) {
         </div>
       </div>
 
-      ${sellingPrice ? `
+      ${(sellingPrice || buyPrice > 0) ? `
       <div class="kpi-grid">
         <div class="kpi-tile${netMargin !== null ? ' highlight' : ''}">
           <div class="kpi-label">Marge nette</div>
@@ -911,7 +913,6 @@ function renderAnalyzeResult(data) {
         </div>
       </div>` : ''}
 
-      ${sellingPrice ? `
       <div class="summary-block">
         <div class="summary-header">
           <span>📋 RÉSUMÉ DE L'ANALYSE</span>
@@ -932,7 +933,7 @@ function renderAnalyzeResult(data) {
         <div class="score-pill"><div class="score-pill-label">BUY BOX</div><div class="score-pill-val" style="color:${details.buybox>=10?'var(--green)':details.buybox>=7?'var(--yellow)':'var(--red)'}">${details.buybox}/15</div></div>
         <div class="score-pill"><div class="score-pill-label">CONCURRENCE</div><div class="score-pill-val" style="color:${details.concurrence>=8?'var(--green)':details.concurrence>=5?'var(--yellow)':'var(--red)'}">${details.concurrence}/10</div></div>
         <div class="score-pill"><div class="score-pill-label">BSR</div><div class="score-pill-val" style="color:${details.bsr>=6?'var(--green)':details.bsr>=4?'var(--yellow)':'var(--red)'}">${details.bsr}/10</div></div>
-      </div>` : ''}
+      </div>
 
       ${sellingPrice && fees ? `
       <div class="breakdown">
